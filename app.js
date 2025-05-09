@@ -34,7 +34,51 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Rutas
+// Ruta raíz
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Bienvenido a la API de Roperito',
+    version: '1.0.0',
+    endpoints: {
+      auth: '/api/auth',
+      users: '/api/users',
+      products: '/api/products',
+      orders: '/api/orders',
+      ratings: '/api/ratings',
+      favorites: '/api/favorites',
+      metadata: '/api/metadata'
+    },
+    documentation: 'Para más información, visita la documentación en /api'
+  });
+});
+
+// Ruta /api
+app.get('/api', (req, res) => {
+  res.json({
+    message: 'API de Roperito',
+    version: '1.0.0',
+    endpoints: {
+      auth: {
+        login: { method: 'POST', path: '/api/auth/login' },
+        register: { method: 'POST', path: '/api/auth/register' }
+      },
+      metadata: {
+        categories: { method: 'GET', path: '/api/metadata/categories' },
+        brands: { method: 'GET', path: '/api/metadata/brands' },
+        sizes: { method: 'GET', path: '/api/metadata/sizes' },
+        colors: { method: 'GET', path: '/api/metadata/colors' },
+        conditions: { method: 'GET', path: '/api/metadata/conditions' }
+      },
+      products: {
+        list: { method: 'GET', path: '/api/products' },
+        create: { method: 'POST', path: '/api/products' },
+        detail: { method: 'GET', path: '/api/products/:id' }
+      }
+    }
+  });
+});
+
+// Rutas API
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
@@ -54,7 +98,10 @@ app.use((err, req, res, next) => {
 
 // Ruta 404
 app.use((req, res) => {
-  res.status(404).json({ error: 'Ruta no encontrada' });
+  res.status(404).json({ 
+    error: 'Ruta no encontrada',
+    message: 'La ruta solicitada no existe. Visita / o /api para ver las rutas disponibles.'
+  });
 });
 
 // Función para encontrar un puerto disponible
@@ -87,6 +134,7 @@ const startServer = async () => {
     
     app.listen(port, () => {
       console.log(`Servidor corriendo en el puerto ${port}`);
+      console.log(`Visita http://localhost:${port} para ver la documentación de la API`);
     });
   } catch (error) {
     console.error('Error al iniciar el servidor:', error);
