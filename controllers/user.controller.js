@@ -138,7 +138,7 @@ const userController = {
             const userId = req.user.id;
             const query = `
                 SELECT o.*, p.title, p.description, pi.image_url as main_image
-                FROM "order" o
+                FROM orders o
                 JOIN products p ON o.product_id = p.id
                 LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_main = true
                 WHERE o.buyer_id = $1
@@ -158,7 +158,7 @@ const userController = {
             const userId = req.user.id;
             const query = `
                 SELECT o.*, p.title, p.description, pi.image_url as main_image
-                FROM "order" o
+                FROM orders o
                 JOIN products p ON o.product_id = p.id
                 LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_main = true
                 WHERE o.seller_id = $1
