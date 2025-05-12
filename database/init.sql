@@ -28,12 +28,29 @@ CREATE TABLE categories (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
+INSERT INTO categories (id, name)
+VALUES 
+    ('00000000-0000-0000-0000-000000000001', 'Camisetas'),
+    ('00000000-0000-0000-0000-000000000002', 'Pantalones'),
+    ('00000000-0000-0000-0000-000000000003', 'Vestidos'),
+    ('00000000-0000-0000-0000-000000000004', 'Calzado'),
+    ('00000000-0000-0000-0000-000000000005', 'Accesorios');
+
 -- Sizes table
 CREATE TABLE sizes (
     id UUID PRIMARY KEY,
     name VARCHAR(10),
     created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Insertar tallas
+INSERT INTO sizes (id, name)
+VALUES 
+    ('78b45085-8532-48f1-8265-8e68619d2637', 'XS'),
+    ('0fb9034a-346e-4143-a060-d210f614fe64', 'S'),
+    ('4c89f203-cde9-4947-8b8c-38dea6e04d6b', 'M'),
+    ('375a0ec6-f96e-4901-907e-9402cbc7023a', 'L'),
+    ('54ec78a6-b19b-41af-9fcf-753b9f31d949', 'XL');
 
 -- Products table
 CREATE TABLE products (
@@ -88,7 +105,7 @@ CREATE TABLE ratings (
 );
 
 -- Orders table
-CREATE TABLE "order" (
+CREATE TABLE orders (
     id UUID PRIMARY KEY,
     product_id UUID NOT NULL,
     seller_id UUID NOT NULL,
@@ -100,3 +117,5 @@ CREATE TABLE "order" (
     FOREIGN KEY (seller_id) REFERENCES users(id),
     FOREIGN KEY (buyer_id) REFERENCES users(id)
 );
+
+

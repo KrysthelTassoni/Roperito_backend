@@ -33,7 +33,7 @@ const orderController = {
 
             // Crear la orden
             const orderQuery = `
-                INSERT INTO "order" (product_id, seller_id, buyer_id, price, status, shipping_address, payment_method)
+                INSERT INTO orders (product_id, seller_id, buyer_id, price, status, shipping_address, payment_method)
                 VALUES ($1, $2, $3, $4, 'pendiente', $5, $6)
                 RETURNING id
             `;
@@ -78,7 +78,7 @@ const orderController = {
                        pi.image_url as product_image,
                        s.name as seller_name,
                        b.name as buyer_name
-                FROM "order" o
+                FROM orders o
                 JOIN products p ON o.product_id = p.id
                 LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_main = true
                 JOIN users s ON o.seller_id = s.id
@@ -109,7 +109,7 @@ const orderController = {
 
             // Verificar que la orden existe y el usuario es el vendedor
             const orderCheck = await pool.query(
-                'SELECT seller_id, product_id FROM "order" WHERE id = $1',
+                'SELECT seller_id, product_id FROM orders WHERE id = $1',
                 [id]
             );
 
@@ -123,7 +123,7 @@ const orderController = {
 
             // Actualizar estado de la orden
             await pool.query(
-                'UPDATE "order" SET status = $1 WHERE id = $2',
+                'UPDATE orders SET status = $1 WHERE id = $2',
                 [status, id]
             );
 
@@ -155,7 +155,7 @@ const orderController = {
 
             // Verificar que la orden existe y el usuario es el comprador
             const orderCheck = await pool.query(
-                'SELECT buyer_id, product_id, status FROM "order" WHERE id = $1',
+                'SELECT buyer_id, product_id, status FROM orders WHERE id = $1',
                 [id]
             );
 
@@ -173,7 +173,7 @@ const orderController = {
 
             // Actualizar estado de la orden
             await pool.query(
-                'UPDATE "order" SET status = $1 WHERE id = $2',
+                'UPDATE orders SET status = $1 WHERE id = $2',
                 ['entregada', id]
             );
 
@@ -204,7 +204,7 @@ const orderController = {
 
             // Verificar que la orden existe y el usuario es parte de ella
             const orderCheck = await pool.query(
-                'SELECT seller_id, buyer_id, product_id, status FROM "order" WHERE id = $1',
+                'SELECT seller_id, buyer_id, product_id, status FROM orders WHERE id = $1',
                 [id]
             );
 
@@ -224,7 +224,7 @@ const orderController = {
 
             // Actualizar estado de la orden
             await pool.query(
-                'UPDATE "order" SET status = $1, cancellation_reason = $2, cancelled_by = $3 WHERE id = $4',
+                'UPDATE orders SET status = $1, cancellation_reason = $2, cancelled_by = $3 WHERE id = $4',
                 ['cancelada', reason, userId, id]
             );
 
