@@ -4,9 +4,21 @@ const metadataController = {
   // Obtener todas las categorías
   getCategories: async (req, res) => {
     try {
-      const query = `SELECT * FROM categories ORDER BY name ASC`;
+      const query = `
+            SELECT 
+                c.*,
+                COUNT(p.id) as product_count
+            FROM categories c
+            LEFT JOIN products p ON c.id = p.category_id
+            GROUP BY c.id
+            ORDER BY c.name ASC
+        `;
+
       const result = await pool.query(query);
-      res.json({ categories: result.rows });
+
+      res.json({
+        categories: result.rows,
+      });
     } catch (error) {
       console.error("Error al obtener categorías:", error);
       res.status(500).json({ error: "Error al obtener categorías" });
@@ -16,12 +28,34 @@ const metadataController = {
   // Obtener todas las tallas
   getSizes: async (req, res) => {
     try {
-      const query = `SELECT * FROM sizes ORDER BY name ASC`;
-      const result = await pool.query(query);
-      res.json({ size: result.rows });
+      const { category_id } = req.query;
+      let query = `
+            SELECT 
+                s.*,
+                COUNT(p.id) as product_count
+            FROM sizes s
+            LEFT JOIN products p ON s.id = p.size_id
+        `;
+
+      const queryParams = [];
+      if (category_id) {
+        query += " WHERE p.category_id = $1";
+        queryParams.push(category_id);
+      }
+
+      query += `
+            GROUP BY s.id
+            ORDER BY s.name ASC
+        `;
+
+      const result = await pool.query(query, queryParams);
+
+      res.json({
+        sizes: result.rows,
+      });
     } catch (error) {
-      console.error("Error al obtener size:", error);
-      res.status(500).json({ error: "Error al obtener size" });
+      console.error("Error al obtener tallas:", error);
+      res.status(500).json({ error: "Error al obtener tallas" });
     }
   },
 
