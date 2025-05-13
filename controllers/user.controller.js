@@ -1,4 +1,4 @@
-import { query } from "../config/db.js";
+import pool from "../config/db.js";
 
 const userController = {
   // Obtener perfil del usuario actual
@@ -8,7 +8,7 @@ const userController = {
 
     try {
       // Obtener datos del usuario
-      const userResult = await query(
+      const userResult = await pool.query(
         `
         SELECT id, name, email, phone_number, created_at
         FROM users
@@ -23,7 +23,7 @@ const userController = {
 
       const user = userResult.rows[0];
 
-      const productsResult = await query(
+      const productsResult = await pool.query(
         `
     SELECT 
       p.*, 
@@ -52,7 +52,7 @@ const userController = {
       );
 
       // Obtener productos favoritos del usuario (mantiene tu lógica original)
-      const favoritesResult = await query(
+      const favoritesResult = await pool.query(
         `
         SELECT f.*, p.title, p.price, pi.image_url
         FROM favorites f
@@ -84,7 +84,7 @@ const userController = {
       const userId = req.user.id;
       const { name, phone_number, address } = req.body;
 
-      await query("BEGIN");
+      await pool.query("BEGIN");
 
       // Actualizar información básica del usuario
       if (name || phone_number) {
@@ -109,7 +109,7 @@ const userController = {
                     SET ${updates.join(", ")}
                     WHERE id = $${paramCount}
                 `;
-        await query(userQuery, values);
+        await pool.query(userQuery, values);
       }
 
       // Actualizar o insertar dirección
@@ -123,7 +123,7 @@ const userController = {
                         region = EXCLUDED.region,
                         country = EXCLUDED.country
                 `;
-        await query(addressQuery, [
+        await pool.query(addressQuery, [
           userId,
           address.city,
           address.region,
@@ -131,11 +131,11 @@ const userController = {
         ]);
       }
 
-      await query("COMMIT");
+      await pool.query("COMMIT");
 
       res.json({ message: "Perfil actualizado exitosamente" });
     } catch (error) {
-      await query("ROLLBACK");
+      await pool.query("ROLLBACK");
       console.error("Error al actualizar perfil:", error);
       res.status(500).json({ error: "Error al actualizar el perfil" });
     }
@@ -154,7 +154,7 @@ const userController = {
                 GROUP BY p.id
                 ORDER BY p.created_at DESC
             `;
-      const result = await query(query, [userId]);
+      const result = await pool.query(query, [userId]);
       res.json(result.rows);
     } catch (error) {
       console.error("Error al obtener productos:", error);
@@ -177,7 +177,7 @@ const userController = {
                 GROUP BY p.id, f.created_at
                 ORDER BY f.created_at DESC
             `;
-      const result = await query(query, [userId]);
+      const result = await pool.query(query, [userId]);
       res.json(result.rows);
     } catch (error) {
       console.error("Error al obtener favoritos:", error);
@@ -197,7 +197,7 @@ const userController = {
                 WHERE o.buyer_id = $1
                 ORDER BY o.created_at DESC
             `;
-      const result = await query(query, [userId]);
+      const result = await pool.query(query, [userId]);
       res.json(result.rows);
     } catch (error) {
       console.error("Error al obtener órdenes de compra:", error);
@@ -217,7 +217,7 @@ const userController = {
                 WHERE o.seller_id = $1
                 ORDER BY o.created_at DESC
             `;
-      const result = await query(query, [userId]);
+      const result = await pool.query(query, [userId]);
       res.json(result.rows);
     } catch (error) {
       console.error("Error al obtener órdenes de venta:", error);
@@ -236,7 +236,7 @@ const userController = {
                 WHERE r.seller_id = $1
                 ORDER BY r.created_at DESC
             `;
-      const result = await query(query, [userId]);
+      const result = await pool.query(query, [userId]);
       res.json(result.rows);
     } catch (error) {
       console.error("Error al obtener calificaciones recibidas:", error);
@@ -255,7 +255,7 @@ const userController = {
                 WHERE r.buyer_id = $1
                 ORDER BY r.created_at DESC
             `;
-      const result = await query(query, [userId]);
+      const result = await pool.query(query, [userId]);
       res.json(result.rows);
     } catch (error) {
       console.error("Error al obtener calificaciones dadas:", error);

@@ -417,10 +417,8 @@ const productController = {
           .json({ error: "No autorizado para eliminar este producto" });
       }
 
-      // Soft delete
-      await pool.query("UPDATE products SET is_active = false WHERE id = $1", [
-        id,
-      ]);
+      // Eliminar el producto físicamente de la base de datos
+      await pool.query("DELETE FROM products WHERE id = $1", [id]);
 
       res.json({ message: "Producto eliminado exitosamente" });
     } catch (error) {
