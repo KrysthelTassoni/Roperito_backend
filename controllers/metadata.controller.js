@@ -90,6 +90,35 @@ const metadataController = {
       res.status(500).json({ error: "Error al obtener filtros" });
     }
   },
+
+  // Obtener todas las regiones de Chile
+  getRegions: async (req, res) => {
+    try {
+      const regions = [
+        { value: "arica", label: "Arica y Parinacota" },
+        { value: "tarapaca", label: "Tarapacá" },
+        { value: "antofagasta", label: "Antofagasta" },
+        { value: "atacama", label: "Atacama" },
+        { value: "coquimbo", label: "Coquimbo" },
+        { value: "valparaiso", label: "Valparaíso" },
+        { value: "metropolitana", label: "Metropolitana de Santiago" },
+        { value: "ohiggins", label: "O'Higgins" },
+        { value: "maule", label: "Maule" },
+        { value: "nuble", label: "Ñuble" },
+        { value: "biobio", label: "Biobío" },
+        { value: "araucania", label: "La Araucanía" },
+        { value: "losrios", label: "Los Ríos" },
+        { value: "loslagos", label: "Los Lagos" },
+        { value: "aysen", label: "Aysén" },
+        { value: "magallanes", label: "Magallanes" }
+      ];
+      
+      res.status(200).json({ regions });
+    } catch (error) {
+      console.error("Error al obtener regiones:", error);
+      res.status(500).json({ error: "Error al obtener regiones" });
+    }
+  },
 };
 
 export default metadataController;

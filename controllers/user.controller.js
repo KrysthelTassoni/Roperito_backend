@@ -22,6 +22,22 @@ const userController = {
       }
 
       const user = userResult.rows[0];
+      
+      // Obtener dirección del usuario
+      const addressResult = await pool.query(
+        `
+      SELECT city, region, country
+      FROM address
+      WHERE user_id = $1
+    `,
+        [userId]
+      );
+      
+      if (addressResult.rowCount > 0) {
+        user.address = addressResult.rows[0];
+      } else {
+        user.address = { city: "", region: "", country: "Chile" };
+      }
 
       // Obtener productos del usuario
       const productsResult = await pool.query(
@@ -68,6 +84,12 @@ const userController = {
     try {
       const userId = req.user.id;
       const { name, phone_number, address } = req.body;
+      
+      console.log("Datos recibidos para actualización:", { 
+        userId, 
+        userData: { name, phone_number }, 
+        addressData: address 
+      });
 
       await pool.query("BEGIN");
 
@@ -90,30 +112,56 @@ const userController = {
 
         values.push(userId);
         const userQuery = `
-                    UPDATE users 
-                    SET ${updates.join(", ")}
-                    WHERE id = $${paramCount}
-                `;
+          UPDATE users 
+          SET ${updates.join(", ")}
+          WHERE id = $${paramCount}
+        `;
+        console.log("Query de actualización de usuario:", userQuery);
+        console.log("Valores para la query:", values);
+        
         await pool.query(userQuery, values);
       }
 
-      // Actualizar o insertar dirección
+      // Verificar si el usuario ya tiene una dirección
       if (address) {
-        const addressQuery = `
-                    INSERT INTO address (user_id, city, region, country)
-                    VALUES ($1, $2, $3, $4)
-                    ON CONFLICT (user_id) 
-                    DO UPDATE SET 
-                        city = EXCLUDED.city,
-                        region = EXCLUDED.region,
-                        country = EXCLUDED.country
-                `;
-        await pool.query(addressQuery, [
-          userId,
-          address.city,
-          address.region,
-          address.country,
-        ]);
+        // Primero verificamos si ya existe una dirección para este usuario
+        const checkAddressQuery = `SELECT id FROM address WHERE user_id = $1`;
+        const addressExists = await pool.query(checkAddressQuery, [userId]);
+        
+        console.log("¿Existe dirección?", addressExists.rowCount > 0);
+
+        if (addressExists.rowCount > 0) {
+          // Actualizar dirección existente
+          const updateAddressQuery = `
+            UPDATE address 
+            SET city = $1, region = $2, country = $3 
+            WHERE user_id = $4
+          `;
+          console.log("Actualizando dirección existente con:", 
+            [address.city, address.region, address.country, userId]);
+          
+          await pool.query(updateAddressQuery, [
+            address.city, 
+            address.region, 
+            address.country, 
+            userId
+          ]);
+        } else {
+          // Crear nueva dirección
+          const insertAddressQuery = `
+            INSERT INTO address (id, user_id, city, region, country) 
+            VALUES (gen_random_uuid(), $1, $2, $3, $4)
+          `;
+          console.log("Creando nueva dirección con:", 
+            [userId, address.city, address.region, address.country]);
+          
+          await pool.query(insertAddressQuery, [
+            userId, 
+            address.city, 
+            address.region, 
+            address.country
+          ]);
+        }
       }
 
       await pool.query("COMMIT");
@@ -122,7 +170,7 @@ const userController = {
     } catch (error) {
       await pool.query("ROLLBACK");
       console.error("Error al actualizar perfil:", error);
-      res.status(500).json({ error: "Error al actualizar el perfil" });
+      res.status(500).json({ error: "Error al actualizar el perfil", details: error.message });
     }
   },
 
