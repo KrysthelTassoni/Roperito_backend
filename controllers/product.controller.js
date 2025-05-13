@@ -201,7 +201,9 @@ const productController = {
           });
 
           // Obtener la URL pública de la imagen
-          const publicUrl = `https://storage.googleapis.com/${bucket.name}/products/${uniqueName}`;
+          const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${
+            bucket.name
+          }/o/${encodeURIComponent(`products/${uniqueName}`)}?alt=media`;
 
           // Asignar si es la imagen principal o no
           const isMain = isMainArray[i] === "true"; // Asegúrate que 'is_main' es un booleano

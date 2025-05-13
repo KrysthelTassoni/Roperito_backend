@@ -1,4 +1,4 @@
-import pool from "../config/db.js";
+import { query } from "../config/db.js";
 
 const userController = {
   // Obtener perfil del usuario actual
@@ -8,7 +8,7 @@ const userController = {
 
     try {
       // Obtener datos del usuario
-      const userResult = await pool.query(
+      const userResult = await query(
         `
         SELECT id, name, email, phone_number, created_at
         FROM users
@@ -23,36 +23,36 @@ const userController = {
 
       const user = userResult.rows[0];
 
-      // Obtener productos del usuario con imágenes anidadas
-      const productsResult = await pool.query(
+      const productsResult = await query(
         `
-        SELECT
-          p.*,
-          c.name AS category_name,
-          s.name AS size_name,
-          COALESCE(
-            json_agg(
-              json_build_object(
-                'image_url', pi.image_url,
-                'is_main', pi.is_main,
-                'order', pi."order"
-              )
-              ORDER BY pi.is_main DESC, pi."order" ASC
-            ) FILTER (WHERE pi.id IS NOT NULL),
-            '[]'
-          ) AS images
-        FROM products p
-        LEFT JOIN categories c ON p.category_id = c.id
-        LEFT JOIN sizes s ON p.size_id = s.id
-        LEFT JOIN product_images pi ON pi.product_id = p.id
-        WHERE p.user_id = $1
-        GROUP BY p.id, c.name, s.name
-      `,
-        [userId]
+    SELECT 
+      p.*, 
+      c.name AS category_name, 
+      s.name AS size_name,
+      COALESCE(
+        JSON_AGG(
+          JSON_BUILD_OBJECT(
+            'id', pi.id,
+            'image_url', pi.image_url,
+            'is_main', pi.is_main,
+            'order', pi."order"
+          )
+          ORDER BY pi.is_main DESC, pi."order" ASC
+        ) FILTER (WHERE pi.id IS NOT NULL),
+        '[]'
+      ) AS images
+    FROM products p
+    LEFT JOIN categories c ON p.category_id = c.id
+    LEFT JOIN sizes s ON p.size_id = s.id
+    LEFT JOIN product_images pi ON pi.product_id = p.id
+    WHERE p.user_id = $1
+    GROUP BY p.id, c.name, s.name
+  `,
+        [user.id]
       );
 
       // Obtener productos favoritos del usuario (mantiene tu lógica original)
-      const favoritesResult = await pool.query(
+      const favoritesResult = await query(
         `
         SELECT f.*, p.title, p.price, pi.image_url
         FROM favorites f
@@ -84,7 +84,7 @@ const userController = {
       const userId = req.user.id;
       const { name, phone_number, address } = req.body;
 
-      await pool.query("BEGIN");
+      await query("BEGIN");
 
       // Actualizar información básica del usuario
       if (name || phone_number) {
@@ -109,7 +109,7 @@ const userController = {
                     SET ${updates.join(", ")}
                     WHERE id = $${paramCount}
                 `;
-        await pool.query(userQuery, values);
+        await query(userQuery, values);
       }
 
       // Actualizar o insertar dirección
@@ -123,7 +123,7 @@ const userController = {
                         region = EXCLUDED.region,
                         country = EXCLUDED.country
                 `;
-        await pool.query(addressQuery, [
+        await query(addressQuery, [
           userId,
           address.city,
           address.region,
@@ -131,11 +131,11 @@ const userController = {
         ]);
       }
 
-      await pool.query("COMMIT");
+      await query("COMMIT");
 
       res.json({ message: "Perfil actualizado exitosamente" });
     } catch (error) {
-      await pool.query("ROLLBACK");
+      await query("ROLLBACK");
       console.error("Error al actualizar perfil:", error);
       res.status(500).json({ error: "Error al actualizar el perfil" });
     }
@@ -154,7 +154,7 @@ const userController = {
                 GROUP BY p.id
                 ORDER BY p.created_at DESC
             `;
-      const result = await pool.query(query, [userId]);
+      const result = await query(query, [userId]);
       res.json(result.rows);
     } catch (error) {
       console.error("Error al obtener productos:", error);
@@ -177,7 +177,7 @@ const userController = {
                 GROUP BY p.id, f.created_at
                 ORDER BY f.created_at DESC
             `;
-      const result = await pool.query(query, [userId]);
+      const result = await query(query, [userId]);
       res.json(result.rows);
     } catch (error) {
       console.error("Error al obtener favoritos:", error);
@@ -197,7 +197,7 @@ const userController = {
                 WHERE o.buyer_id = $1
                 ORDER BY o.created_at DESC
             `;
-      const result = await pool.query(query, [userId]);
+      const result = await query(query, [userId]);
       res.json(result.rows);
     } catch (error) {
       console.error("Error al obtener órdenes de compra:", error);
@@ -217,7 +217,7 @@ const userController = {
                 WHERE o.seller_id = $1
                 ORDER BY o.created_at DESC
             `;
-      const result = await pool.query(query, [userId]);
+      const result = await query(query, [userId]);
       res.json(result.rows);
     } catch (error) {
       console.error("Error al obtener órdenes de venta:", error);
@@ -236,7 +236,7 @@ const userController = {
                 WHERE r.seller_id = $1
                 ORDER BY r.created_at DESC
             `;
-      const result = await pool.query(query, [userId]);
+      const result = await query(query, [userId]);
       res.json(result.rows);
     } catch (error) {
       console.error("Error al obtener calificaciones recibidas:", error);
@@ -255,7 +255,7 @@ const userController = {
                 WHERE r.buyer_id = $1
                 ORDER BY r.created_at DESC
             `;
-      const result = await pool.query(query, [userId]);
+      const result = await query(query, [userId]);
       res.json(result.rows);
     } catch (error) {
       console.error("Error al obtener calificaciones dadas:", error);
