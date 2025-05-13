@@ -1,0 +1,79 @@
+{
+    "clientName": "Thunder Client",
+    "collectionName": "roperito",
+    "collectionId": "c5006fc2-6ab8-469b-8061-d6441c60f192",
+    "dateExported": "2025-05-13T03:22:47.533Z",
+    "version": "1.2",
+    "folders": [],
+    "requests": [
+        {
+            "_id": "f409bc00-6af8-4743-843c-c2149a33b369",
+            "colId": "c5006fc2-6ab8-469b-8061-d6441c60f192",
+            "containerId": "",
+            "name": "me",
+            "url": "http://localhost:3001/api/users/me",
+            "method": "GET",
+            "sortNum": 10000,
+            "created": "2025-05-13T03:22:18.870Z",
+            "modified": "2025-05-13T03:22:18.870Z",
+            "headers": [
+                {
+                    "name": "Authorization",
+                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI5YWY5YTcwMS1kN2Q1LTQ5MzQtOGJiYy05NWZkZTQzN2ZiYTQiLCJlbWFpbCI6InJpdmVyb3NAZ21haWwuY29tIiwiaWF0IjoxNzQ3MTA2MjU5LCJleHAiOjE3NDcxOTI2NTl9.IqT4R0nqjO1uxvelq8Tdofz1KSGsO-wPEUXp4tZa4MQ"
+                }
+            ]
+        },
+        {
+            "_id": "34b2fcd1-49d0-4925-a569-fec68343fee4",
+            "colId": "c5006fc2-6ab8-469b-8061-d6441c60f192",
+            "containerId": "",
+            "name": "user products",
+            "url": "http://localhost:3001/api/users/products",
+            "method": "GET",
+            "sortNum": 20000,
+            "created": "2025-05-13T03:22:29.165Z",
+            "modified": "2025-05-13T03:22:29.165Z",
+            "headers": [
+                {
+                    "name": "Authorization",
+                    "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI5YWY5YTcwMS1kN2Q1LTQ5MzQtOGJiYy05NWZkZTQzN2ZiYTQiLCJlbWFpbCI6InJpdmVyb3NAZ21haWwuY29tIiwiaWF0IjoxNzQ3MTA2MjU5LCJleHAiOjE3NDcxOTI2NTl9.IqT4R0nqjO1uxvelq8Tdofz1KSGsO-wPEUXp4tZa4MQ"
+                }
+            ]
+        },
+        {
+            "_id": "36746d79-be38-483b-a441-a4d2aef9f7b8",
+            "colId": "c5006fc2-6ab8-469b-8061-d6441c60f192",
+            "containerId": "",
+            "name": "login",
+            "url": "http://localhost:3001/api/auth/login",
+            "method": "POST",
+            "sortNum": 30000,
+            "created": "2025-05-13T03:22:33.286Z",
+            "modified": "2025-05-13T03:22:33.286Z",
+            "headers": [],
+            "body": {
+                "type": "json",
+                "raw": "{\r\n    \"email\": \"riveros@gmail.com\",\r\n    \"password\": \"123456\"\r\n}",
+                "form": []
+            }
+        },
+        {
+            "_id": "9251815b-6611-49fc-8520-efba317413b6",
+            "colId": "c5006fc2-6ab8-469b-8061-d6441c60f192",
+            "containerId": "",
+            "name": "register",
+            "url": "http://localhost:3001/api/auth/register",
+            "method": "POST",
+            "sortNum": 40000,
+            "created": "2025-05-13T03:22:37.250Z",
+            "modified": "2025-05-13T03:22:37.250Z",
+            "headers": [],
+            "body": {
+                "type": "json",
+                "raw": "{\r\n    \"name\": \"Bryan\",\r\n    \"email\": \"riveros@gmail.com\",\r\n    \"password\": \"123456\",\r\n    \"phone\":\"+5698765432\"\r\n}",
+                "form": []
+            }
+        }
+    ],
+    "ref": "ZJ04xyymoWXQhoMniBShRq_1eXbFqYbcsw364CRg0i74t7nZYHLcupWIwIcAK8Vf1aTy0aW9wyU6M___C19cVw"
+}
