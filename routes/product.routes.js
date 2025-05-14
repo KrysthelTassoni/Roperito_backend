@@ -68,7 +68,7 @@ router.delete("/:id", productController.deleteProduct);
 router.patch(
   "/:id/status",
   body("status")
-    .isIn(["disponible", "reservado", "vendido"])
+    .isIn(["disponible", "vendido"])
     .withMessage("Estado no válido"),
   validateRequest,
   productController.updateProductStatus

@@ -4,7 +4,8 @@ const favoriteController = {
   // Agregar un producto a favoritos
   addFavorite: async (req, res) => {
     try {
-      const { product_id } = req.body;
+      const { productId } = req.params;
+
       const user_id = req.user.id;
 
       await pool.query("BEGIN");
@@ -12,7 +13,7 @@ const favoriteController = {
       // Verificar que el producto existe y está activo
       const productCheck = await pool.query(
         "SELECT id, user_id FROM products WHERE id = $1 AND is_active = true",
-        [product_id]
+        [productId]
       );
 
       if (productCheck.rows.length === 0) {
@@ -29,7 +30,7 @@ const favoriteController = {
       // Verificar que el producto no está ya en favoritos
       const favoriteCheck = await pool.query(
         "SELECT id FROM favorites WHERE user_id = $1 AND product_id = $2",
-        [user_id, product_id]
+        [user_id, productId]
       );
 
       if (favoriteCheck.rows.length > 0) {
@@ -41,13 +42,13 @@ const favoriteController = {
       // Agregar a favoritos
       await pool.query(
         "INSERT INTO favorites (user_id, product_id) VALUES ($1, $2)",
-        [user_id, product_id]
+        [user_id, productId]
       );
 
       // Incrementar contador de favoritos del producto
       await pool.query(
         "UPDATE products SET favorites_count = favorites_count + 1 WHERE id = $1",
-        [product_id]
+        [productId]
       );
 
       await pool.query("COMMIT");
@@ -121,7 +122,7 @@ LIMIT $2 OFFSET $3;
   // Eliminar un producto de favoritos
   removeFavorite: async (req, res) => {
     try {
-      const { product_id } = req.params;
+      const { productId } = req.params;
       const user_id = req.user.id;
 
       await pool.query("BEGIN");
@@ -129,7 +130,7 @@ LIMIT $2 OFFSET $3;
       // Verificar que el favorito existe
       const favoriteCheck = await pool.query(
         "SELECT id FROM favorites WHERE user_id = $1 AND product_id = $2",
-        [user_id, product_id]
+        [user_id, productId]
       );
 
       if (favoriteCheck.rows.length === 0) {
@@ -141,13 +142,13 @@ LIMIT $2 OFFSET $3;
       // Eliminar de favoritos
       await pool.query(
         "DELETE FROM favorites WHERE user_id = $1 AND product_id = $2",
-        [user_id, product_id]
+        [user_id, productId]
       );
 
       // Decrementar contador de favoritos del producto
       await pool.query(
         "UPDATE products SET favorites_count = GREATEST(favorites_count - 1, 0) WHERE id = $1",
-        [product_id]
+        [productId]
       );
 
       await pool.query("COMMIT");
