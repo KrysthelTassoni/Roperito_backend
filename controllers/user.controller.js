@@ -25,28 +25,28 @@ const userController = {
 
       const productsResult = await pool.query(
         `
-    SELECT 
-      p.*, 
-      c.name AS category_name, 
-      s.name AS size_name,
-      COALESCE(
-        JSON_AGG(
-          JSON_BUILD_OBJECT(
-            'id', pi.id,
-            'image_url', pi.image_url,
-            'is_main', pi.is_main,
-            'order', pi."order"
-          )
-          ORDER BY pi.is_main DESC, pi."order" ASC
-        ) FILTER (WHERE pi.id IS NOT NULL),
-        '[]'
-      ) AS images
-    FROM products p
-    LEFT JOIN categories c ON p.category_id = c.id
-    LEFT JOIN sizes s ON p.size_id = s.id
-    LEFT JOIN product_images pi ON pi.product_id = p.id
-    WHERE p.user_id = $1
-    GROUP BY p.id, c.name, s.name
+   SELECT 
+  p.*, 
+  c.name AS category_name, 
+  s.name AS size_name,
+  COALESCE(
+    JSON_AGG(
+      JSON_BUILD_OBJECT(
+        'id', pi.id,
+        'image_url', pi.image_url,
+        'order', pi."order"
+      )
+      ORDER BY pi."order" ASC
+    ) FILTER (WHERE pi.id IS NOT NULL),
+    '[]'
+  ) AS images
+FROM products p
+LEFT JOIN categories c ON p.category_id = c.id
+LEFT JOIN sizes s ON p.size_id = s.id
+LEFT JOIN product_images pi ON pi.product_id = p.id
+WHERE p.user_id = $1
+GROUP BY p.id, c.name, s.name;
+
   `,
         [user.id]
       );
@@ -55,15 +55,17 @@ const userController = {
       const favoritesResult = await pool.query(
         `
         SELECT f.*, p.title, p.price, pi.image_url
-        FROM favorites f
-        JOIN products p ON f.product_id = p.id
-        LEFT JOIN LATERAL (
-          SELECT image_url FROM product_images
-          WHERE product_id = p.id
-          ORDER BY is_main DESC, "order" ASC
-          LIMIT 1
-        ) pi ON true
-        WHERE f.user_id = $1
+FROM favorites f
+JOIN products p ON f.product_id = p.id
+LEFT JOIN LATERAL (
+  SELECT image_url
+  FROM product_images
+  WHERE product_id = p.id
+  ORDER BY "order" ASC
+  LIMIT 1
+) pi ON true
+WHERE f.user_id = $1;
+
       `,
         [userId]
       );
@@ -190,12 +192,14 @@ const userController = {
     try {
       const userId = req.user.id;
       const query = `
-                SELECT o.*, p.title, p.description, pi.image_url as main_image
-                FROM orders o
-                JOIN products p ON o.product_id = p.id
-                LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_main = true
-                WHERE o.buyer_id = $1
-                ORDER BY o.created_at DESC
+               SELECT o.*, p.title, p.description, pi.image_url as main_image
+FROM orders o
+JOIN products p ON o.product_id = p.id
+LEFT JOIN product_images pi ON p.id = pi.product_id
+ORDER BY pi."order" ASC
+WHERE o.buyer_id = $1
+ORDER BY o.created_at DESC;
+
             `;
       const result = await pool.query(query, [userId]);
       res.json(result.rows);
@@ -210,12 +214,14 @@ const userController = {
     try {
       const userId = req.user.id;
       const query = `
-                SELECT o.*, p.title, p.description, pi.image_url as main_image
-                FROM orders o
-                JOIN products p ON o.product_id = p.id
-                LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_main = true
-                WHERE o.seller_id = $1
-                ORDER BY o.created_at DESC
+               SELECT o.*, p.title, p.description, pi.image_url as main_image
+FROM orders o
+JOIN products p ON o.product_id = p.id
+LEFT JOIN product_images pi ON p.id = pi.product_id
+ORDER BY pi."order" ASC
+WHERE o.seller_id = $1
+ORDER BY o.created_at DESC;
+
             `;
       const result = await pool.query(query, [userId]);
       res.json(result.rows);

@@ -77,28 +77,28 @@ const authController = {
       // Obtener productos del usuario
       const productsResult = await query(
         `
-    SELECT 
-      p.*, 
-      c.name AS category_name, 
-      s.name AS size_name,
-      COALESCE(
-        JSON_AGG(
-          JSON_BUILD_OBJECT(
-            'id', pi.id,
-            'image_url', pi.image_url,
-            'is_main', pi.is_main,
-            'order', pi."order"
-          )
-          ORDER BY pi.is_main DESC, pi."order" ASC
-        ) FILTER (WHERE pi.id IS NOT NULL),
-        '[]'
-      ) AS images
-    FROM products p
-    LEFT JOIN categories c ON p.category_id = c.id
-    LEFT JOIN sizes s ON p.size_id = s.id
-    LEFT JOIN product_images pi ON pi.product_id = p.id
-    WHERE p.user_id = $1
-    GROUP BY p.id, c.name, s.name
+  SELECT 
+    p.*, 
+    c.name AS category_name, 
+    s.name AS size_name,
+    COALESCE(
+      JSON_AGG(
+        JSON_BUILD_OBJECT(
+          'id', pi.id,
+          'image_url', pi.image_url,
+          'order', pi."order"
+        )
+        ORDER BY pi."order" ASC
+      ) FILTER (WHERE pi.id IS NOT NULL),
+      '[]'
+    ) AS images
+FROM products p
+LEFT JOIN categories c ON p.category_id = c.id
+LEFT JOIN sizes s ON p.size_id = s.id
+LEFT JOIN product_images pi ON pi.product_id = p.id
+WHERE p.user_id = $1
+GROUP BY p.id, c.name, s.name;
+
   `,
         [user.id]
       );
@@ -106,16 +106,18 @@ const authController = {
       // Obtener productos favoritos del usuario
       const favoritesResult = await query(
         `
-          SELECT f.*, p.title, p.price, pi.image_url
-          FROM favorites f
-          JOIN products p ON f.product_id = p.id
-          LEFT JOIN LATERAL (
-            SELECT image_url FROM product_images
-            WHERE product_id = p.id
-            ORDER BY is_main DESC, "order" ASC
-            LIMIT 1
-          ) pi ON true
-          WHERE f.user_id = $1
+        SELECT f.*, p.title, p.price, pi.image_url
+FROM favorites f
+JOIN products p ON f.product_id = p.id
+LEFT JOIN LATERAL (
+  SELECT image_url
+  FROM product_images
+  WHERE product_id = p.id
+  ORDER BY "order" ASC
+  LIMIT 1
+) pi ON true
+WHERE f.user_id = $1;
+
         `,
         [user.id]
       );

@@ -75,7 +75,6 @@ CREATE TABLE product_images (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     product_id UUID NOT NULL,
     image_url TEXT,
-    is_main BOOLEAN,
     "order" INTEGER,
     created_at TIMESTAMP DEFAULT NOW(),
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
