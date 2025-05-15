@@ -15,6 +15,7 @@ CREATE TABLE address (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID UNIQUE,
     city VARCHAR(100),
+    province VARCHAR(100),
     region VARCHAR(100),
     country VARCHAR(100),
     created_at TIMESTAMP DEFAULT NOW(),
@@ -33,7 +34,6 @@ VALUES
     ('00000000-0000-0000-0000-000000000001', 'Camisetas'),
     ('00000000-0000-0000-0000-000000000002', 'Pantalones'),
     ('00000000-0000-0000-0000-000000000003', 'Vestidos'),
-    ('00000000-0000-0000-0000-000000000004', 'Calzado'),
     ('00000000-0000-0000-0000-000000000005', 'Accesorios');
 
 
