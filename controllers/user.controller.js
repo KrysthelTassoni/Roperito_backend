@@ -10,10 +10,10 @@ const userController = {
       // Obtener datos del usuario
       const userResult = await pool.query(
         `
-        SELECT id, name, email, phone_number, created_at
-        FROM users
-        WHERE id = $1
-      `,
+      SELECT id, name, email, phone_number, created_at
+      FROM users
+      WHERE id = $1
+    `,
         [userId]
       );
 
@@ -23,55 +23,67 @@ const userController = {
 
       const user = userResult.rows[0];
 
+      // Obtener dirección del usuario
+      const addressResult = await pool.query(
+        `
+      SELECT city, region, country, province
+      FROM address
+      WHERE user_id = $1
+    `,
+        [userId]
+      );
+
+      const address = addressResult.rows[0] || null;
+
+      // Obtener productos del usuario
       const productsResult = await pool.query(
         `
-   SELECT 
-  p.*, 
-  c.name AS category_name, 
-  s.name AS size_name,
-  COALESCE(
-    JSON_AGG(
-      JSON_BUILD_OBJECT(
-        'id', pi.id,
-        'image_url', pi.image_url,
-        'order', pi."order"
-      )
-      ORDER BY pi."order" ASC
-    ) FILTER (WHERE pi.id IS NOT NULL),
-    '[]'
-  ) AS images
-FROM products p
-LEFT JOIN categories c ON p.category_id = c.id
-LEFT JOIN sizes s ON p.size_id = s.id
-LEFT JOIN product_images pi ON pi.product_id = p.id
-WHERE p.user_id = $1
-GROUP BY p.id, c.name, s.name;
-
-  `,
+      SELECT 
+        p.*, 
+        c.name AS category_name, 
+        s.name AS size_name,
+        COALESCE(
+          JSON_AGG(
+            JSON_BUILD_OBJECT(
+              'id', pi.id,
+              'image_url', pi.image_url,
+              'order', pi."order"
+            )
+            ORDER BY pi."order" ASC
+          ) FILTER (WHERE pi.id IS NOT NULL),
+          '[]'
+        ) AS images
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      LEFT JOIN sizes s ON p.size_id = s.id
+      LEFT JOIN product_images pi ON pi.product_id = p.id
+      WHERE p.user_id = $1
+      GROUP BY p.id, c.name, s.name;
+    `,
         [user.id]
       );
 
-      // Obtener productos favoritos del usuario (mantiene tu lógica original)
+      // Obtener productos favoritos
       const favoritesResult = await pool.query(
         `
-        SELECT f.*, p.title, p.price, pi.image_url
-FROM favorites f
-JOIN products p ON f.product_id = p.id
-LEFT JOIN LATERAL (
-  SELECT image_url
-  FROM product_images
-  WHERE product_id = p.id
-  ORDER BY "order" ASC
-  LIMIT 1
-) pi ON true
-WHERE f.user_id = $1;
-
-      `,
+      SELECT f.*, p.title, p.price, pi.image_url
+      FROM favorites f
+      JOIN products p ON f.product_id = p.id
+      LEFT JOIN LATERAL (
+        SELECT image_url
+        FROM product_images
+        WHERE product_id = p.id
+        ORDER BY "order" ASC
+        LIMIT 1
+      ) pi ON true
+      WHERE f.user_id = $1;
+    `,
         [userId]
       );
 
       res.json({
         user,
+        address,
         products: productsResult.rows,
         favorites: favoritesResult.rows,
       });
@@ -80,6 +92,7 @@ WHERE f.user_id = $1;
       res.status(500).json({ message: "Error interno del servidor" });
     }
   },
+
   // Actualizar perfil del usuario
   updateProfile: async (req, res) => {
     try {
@@ -117,19 +130,21 @@ WHERE f.user_id = $1;
       // Actualizar o insertar dirección
       if (address) {
         const addressQuery = `
-                    INSERT INTO address (user_id, city, region, country)
-                    VALUES ($1, $2, $3, $4)
+                    INSERT INTO address (user_id, city, region, country, province)
+                    VALUES ($1, $2, $3, $4, $5)
                     ON CONFLICT (user_id) 
                     DO UPDATE SET 
                         city = EXCLUDED.city,
                         region = EXCLUDED.region,
-                        country = EXCLUDED.country
+                        country = EXCLUDED.country,
+                        province = EXCLUDED.province
                 `;
         await pool.query(addressQuery, [
           userId,
           address.city,
           address.region,
           address.country,
+          address.province,
         ]);
       }
 

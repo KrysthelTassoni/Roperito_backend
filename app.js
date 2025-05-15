@@ -10,6 +10,7 @@ import orderRoutes from "./routes/order.routes.js";
 import ratingRoutes from "./routes/rating.routes.js";
 import favoriteRoutes from "./routes/favorite.routes.js";
 import metadataRoutes from "./routes/metadata.routes.js";
+import addressRoutes from "./routes/address.routes.js";
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -27,6 +28,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/ratings", ratingRoutes);
 app.use("/api/favorites", favoriteRoutes);
 app.use("/api/metadata", metadataRoutes);
+app.use("/api/address", addressRoutes);
 
 // Ruta no encontrada
 app.use((req, res) => {
