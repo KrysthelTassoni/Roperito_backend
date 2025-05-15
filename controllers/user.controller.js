@@ -23,19 +23,7 @@ const userController = {
 
       const user = userResult.rows[0];
 
-      // Obtener dirección del usuario
-      const addressResult = await pool.query(
-        `
-      SELECT city, region, country, province
-      FROM address
-      WHERE user_id = $1
-    `,
-        [userId]
-      );
-
-      const address = addressResult.rows[0] || null;
-
-      // Obtener productos del usuario
+      // Obtener productos del usuario con imágenes
       const productsResult = await pool.query(
         `
       SELECT 
@@ -49,9 +37,9 @@ const userController = {
               'image_url', pi.image_url,
               'order', pi."order"
             )
-            ORDER BY pi."order" ASC
+            ORDER BY pi."order"
           ) FILTER (WHERE pi.id IS NOT NULL),
-          '[]'
+          '[]'::json
         ) AS images
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
@@ -59,31 +47,41 @@ const userController = {
       LEFT JOIN product_images pi ON pi.product_id = p.id
       WHERE p.user_id = $1
       GROUP BY p.id, c.name, s.name;
-    `,
+      `,
         [user.id]
       );
 
-      // Obtener productos favoritos
+      // Obtener productos favoritos con array de imágenes
       const favoritesResult = await pool.query(
         `
-      SELECT f.*, p.title, p.price, pi.image_url
+      SELECT 
+        f.*, 
+        p.title, 
+        p.price,
+        COALESCE(
+          (
+            SELECT JSON_AGG(
+              JSON_BUILD_OBJECT(
+                'id', pi.id,
+                'image_url', pi.image_url,
+                'order', pi."order"
+              )
+              ORDER BY pi."order"
+            )
+            FROM product_images pi
+            WHERE pi.product_id = p.id
+          ),
+          '[]'::json
+        ) AS images
       FROM favorites f
       JOIN products p ON f.product_id = p.id
-      LEFT JOIN LATERAL (
-        SELECT image_url
-        FROM product_images
-        WHERE product_id = p.id
-        ORDER BY "order" ASC
-        LIMIT 1
-      ) pi ON true
       WHERE f.user_id = $1;
-    `,
+      `,
         [userId]
       );
 
       res.json({
         user,
-        address,
         products: productsResult.rows,
         favorites: favoritesResult.rows,
       });
@@ -130,21 +128,19 @@ const userController = {
       // Actualizar o insertar dirección
       if (address) {
         const addressQuery = `
-                    INSERT INTO address (user_id, city, region, country, province)
-                    VALUES ($1, $2, $3, $4, $5)
+                    INSERT INTO address (user_id, city, region, country)
+                    VALUES ($1, $2, $3, $4)
                     ON CONFLICT (user_id) 
                     DO UPDATE SET 
                         city = EXCLUDED.city,
                         region = EXCLUDED.region,
-                        country = EXCLUDED.country,
-                        province = EXCLUDED.province
+                        country = EXCLUDED.country
                 `;
         await pool.query(addressQuery, [
           userId,
           address.city,
           address.region,
           address.country,
-          address.province,
         ]);
       }
 

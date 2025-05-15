@@ -55,7 +55,6 @@ const authController = {
     try {
       const { email, password } = req.body;
 
-      // Buscar usuario por email
       const result = await query(
         "SELECT id, name, email, password_hash FROM users WHERE email = $1",
         [email]
@@ -67,26 +66,13 @@ const authController = {
         return res.status(401).json({ error: "Credenciales inválidas" });
       }
 
-      // Verificar contraseña
       const validPassword = await bcrypt.compare(password, user.password_hash);
 
       if (!validPassword) {
         return res.status(401).json({ error: "Credenciales inválidas" });
       }
 
-      // Obtener dirección del usuario
-      const addressResult = await query(
-        `
-      SELECT city, region, country
-      FROM address
-      WHERE user_id = $1
-    `,
-        [user.id]
-      );
-
-      const address = addressResult.rows[0] || null;
-
-      // Obtener productos del usuario
+      // Productos
       const productsResult = await query(
         `
       SELECT 
@@ -100,9 +86,9 @@ const authController = {
               'image_url', pi.image_url,
               'order', pi."order"
             )
-            ORDER BY pi."order" ASC
+            ORDER BY pi."order"
           ) FILTER (WHERE pi.id IS NOT NULL),
-          '[]'
+          '[]'::json
         ) AS images
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
@@ -110,39 +96,48 @@ const authController = {
       LEFT JOIN product_images pi ON pi.product_id = p.id
       WHERE p.user_id = $1
       GROUP BY p.id, c.name, s.name;
-    `,
+      `,
         [user.id]
       );
 
-      // Obtener productos favoritos del usuario
+      // Favoritos
       const favoritesResult = await query(
         `
-      SELECT f.*, p.title, p.price, pi.image_url
+      SELECT 
+        f.*, 
+        p.title, 
+        p.price,
+        COALESCE(
+          (
+            SELECT JSON_AGG(
+              JSON_BUILD_OBJECT(
+                'id', pi.id,
+                'image_url', pi.image_url,
+                'order', pi."order"
+              )
+              ORDER BY pi."order"
+            )
+            FROM product_images pi
+            WHERE pi.product_id = p.id
+          ),
+          '[]'::json
+        ) AS images
       FROM favorites f
       JOIN products p ON f.product_id = p.id
-      LEFT JOIN LATERAL (
-        SELECT image_url
-        FROM product_images
-        WHERE product_id = p.id
-        ORDER BY "order" ASC
-        LIMIT 1
-      ) pi ON true
       WHERE f.user_id = $1;
-    `,
+      `,
         [user.id]
       );
 
-      // Generar token JWT
+      // Token
       const token = jwt.sign(
         { userId: user.id, email: user.email },
         process.env.JWT_SECRET,
         { expiresIn: "24h" }
       );
 
-      // Devolver respuesta completa
       res.json({
         user,
-        address,
         products: productsResult.rows,
         favorites: favoritesResult.rows,
         token,

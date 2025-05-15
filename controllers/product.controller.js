@@ -9,20 +9,32 @@ const productController = {
   getAllProducts: async (req, res) => {
     try {
       const query = `
-                SELECT p.*, 
-                       array_agg(DISTINCT pi.image_url) as images,
-                       u.name as seller_name,
-                       c.name as category_name,
-                       s.name as size_name
-                FROM products p
-                LEFT JOIN product_images pi ON p.id = pi.product_id
-                JOIN users u ON p.user_id = u.id
-                JOIN categories c ON p.category_id = c.id
-                JOIN sizes s ON p.size_id = s.id
-                WHERE p.is_active = true
-                GROUP BY p.id, u.name, c.name, s.name
-                ORDER BY p.created_at DESC
-            `;
+      SELECT 
+        p.*, 
+        json_agg(DISTINCT jsonb_build_object(
+          'id', pi.id,
+          'image_url', pi.image_url,
+          'order', pi."order"
+        )) AS images,
+        jsonb_build_object(
+          'id', u.id,
+          'name', u.name,
+          'email', u.email,
+          'phone_number', u.phone_number,
+          'created_at', u.created_at
+        ) AS seller,
+        c.name AS category_name,
+        s.name AS size_name
+      FROM products p
+      LEFT JOIN product_images pi ON p.id = pi.product_id
+      JOIN users u ON p.user_id = u.id
+      JOIN categories c ON p.category_id = c.id
+      JOIN sizes s ON p.size_id = s.id
+      WHERE p.is_active = true
+      GROUP BY p.id, u.id, c.name, s.name
+      ORDER BY p.created_at DESC
+    `;
+
       const result = await pool.query(query);
       res.json(result.rows);
     } catch (error) {
@@ -30,7 +42,6 @@ const productController = {
       res.status(500).json({ error: "Error al obtener los productos" });
     }
   },
-
   // Buscar productos
   searchProducts: async (req, res) => {
     try {

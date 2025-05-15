@@ -58,7 +58,7 @@ CREATE TABLE products (
     user_id UUID NOT NULL,
     title VARCHAR(150),
     description TEXT,
-    price DECIMAL(10,2),
+    price INTEGER, 
     category_id UUID NOT NULL,
     size_id UUID NOT NULL,
     status VARCHAR(50),
@@ -103,9 +103,9 @@ CREATE TABLE ratings (
     UNIQUE (buyer_id, seller_id)
 );
 
--
+
 CREATE TABLE orders (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid()   ,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     product_id UUID NOT NULL,
     seller_id UUID NOT NULL,
     buyer_id UUID NOT NULL,
