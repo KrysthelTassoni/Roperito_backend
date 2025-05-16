@@ -116,3 +116,15 @@ CREATE TABLE orders (
     FOREIGN KEY (seller_id) REFERENCES users(id),
     FOREIGN KEY (buyer_id) REFERENCES users(id)
 );
+
+
+CREATE TABLE potential_buyers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    product_id UUID NOT NULL,
+    message TEXT, -- Opcional: mensaje que deja el comprador interesado
+    created_at TIMESTAMP DEFAULT NOW(),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    UNIQUE (user_id, product_id) -- Para evitar duplicados
+);

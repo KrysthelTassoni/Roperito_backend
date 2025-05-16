@@ -12,7 +12,4 @@ router.get("/sizes", metadataController.getSizes);
 // Obtener filtros disponibles
 router.get("/filters", metadataController.getFilters);
 
-// Obtener todas las regiones de Chile
-router.get("/regions", metadataController.getRegions);
-
 export default router;

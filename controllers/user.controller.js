@@ -91,12 +91,72 @@ const userController = {
       `,
         [userId]
       );
+      const ordersBoughtResult = await pool.query(
+        `
+          SELECT 
+  o.id,
+  o.product_id,
+  o.price,
+  o.status,
+  o.created_at,
+  p.title AS product_title,
+  p.price AS product_price,
+  (
+    SELECT pi.image_url
+    FROM product_images pi
+    WHERE pi.product_id = p.id
+    ORDER BY pi."order"
+    LIMIT 1
+  ) AS product_image,
+  u_seller.name AS seller_name,
+  u_buyer.name AS buyer_name
+FROM orders o
+JOIN products p ON o.product_id = p.id
+JOIN users u_seller ON o.seller_id = u_seller.id
+JOIN users u_buyer ON o.buyer_id = u_buyer.id
+WHERE o.buyer_id = $1
+ORDER BY o.created_at DESC;
+      `,
+        [userId]
+      );
+
+      // 💼 Órdenes donde el usuario fue VENDEDOR
+      const ordersSoldResult = await pool.query(
+        `
+       SELECT 
+  o.id,
+  o.product_id,
+  o.price,
+  o.status,
+  o.created_at,
+  p.title AS product_title,
+  p.price AS product_price,
+  (
+    SELECT pi.image_url
+    FROM product_images pi
+    WHERE pi.product_id = p.id
+    ORDER BY pi."order"
+    LIMIT 1
+  ) AS product_image,
+  u_seller.name AS seller_name,
+  u_buyer.name AS buyer_name
+FROM orders o
+JOIN products p ON o.product_id = p.id
+JOIN users u_seller ON o.seller_id = u_seller.id
+JOIN users u_buyer ON o.buyer_id = u_buyer.id
+WHERE o.seller_id = $1
+ORDER BY o.created_at DESC;
+      `,
+        [userId]
+      );
 
       res.json({
         user,
         address,
         products: productsResult.rows,
         favorites: favoritesResult.rows,
+        orders_bought: ordersBoughtResult.rows,
+        orders_sold: ordersSoldResult.rows,
       });
     } catch (error) {
       console.error("Error obteniendo datos de usuario:", error);
