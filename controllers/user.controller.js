@@ -23,6 +23,18 @@ const userController = {
 
       const user = userResult.rows[0];
 
+      // Obtener dirección del usuario
+      const addressResult = await pool.query(
+        `
+      SELECT city, region, country, province
+      FROM address
+      WHERE user_id = $1
+    `,
+        [userId]
+      );
+
+      const address = addressResult.rows[0] || null;
+
       // Obtener productos del usuario con imágenes
       const productsResult = await pool.query(
         `
@@ -82,6 +94,7 @@ const userController = {
 
       res.json({
         user,
+        address,
         products: productsResult.rows,
         favorites: favoritesResult.rows,
       });
@@ -128,19 +141,21 @@ const userController = {
       // Actualizar o insertar dirección
       if (address) {
         const addressQuery = `
-                    INSERT INTO address (user_id, city, region, country)
-                    VALUES ($1, $2, $3, $4)
+                    INSERT INTO address (user_id, city, region, country, province)
+                    VALUES ($1, $2, $3, $4, $5)
                     ON CONFLICT (user_id) 
                     DO UPDATE SET 
                         city = EXCLUDED.city,
                         region = EXCLUDED.region,
-                        country = EXCLUDED.country
+                        country = EXCLUDED.country,
+                        province = EXCLUDED.province
                 `;
         await pool.query(addressQuery, [
           userId,
           address.city,
           address.region,
           address.country,
+          address.province,
         ]);
       }
 

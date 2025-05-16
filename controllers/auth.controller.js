@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "crypto";
-import { query } from "../config/db.js";
+import pool from "../config/db.js";
 
 const authController = {
   register: async (req, res) => {
@@ -9,9 +9,10 @@ const authController = {
       const { name, email, password, phone } = req.body;
 
       // Verificar si el email ya existe
-      const userExists = await query("SELECT id FROM users WHERE email = $1", [
-        email,
-      ]);
+      const userExists = await pool.query(
+        "SELECT id FROM users WHERE email = $1",
+        [email]
+      );
 
       if (userExists.rows.length > 0) {
         return res.status(409).json({ error: "Email ya registrado" });
@@ -23,7 +24,7 @@ const authController = {
 
       // Crear nuevo usuario
       const userId = randomUUID();
-      const result = await query(
+      const result = await pool.query(
         "INSERT INTO users (id, name, email, password_hash, phone_number) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, email",
         [userId, name, email, passwordHash, phone]
       );
@@ -55,7 +56,7 @@ const authController = {
     try {
       const { email, password } = req.body;
 
-      const result = await query(
+      const result = await pool.query(
         "SELECT id, name, email, password_hash FROM users WHERE email = $1",
         [email]
       );
@@ -72,8 +73,20 @@ const authController = {
         return res.status(401).json({ error: "Credenciales inválidas" });
       }
 
+      // Obtener dirección del usuario
+      const addressResult = await pool.query(
+        `
+      SELECT city, region, country, province
+      FROM address
+      WHERE user_id = $1
+    `,
+        [user.id]
+      );
+
+      const address = addressResult.rows[0] || null;
+
       // Productos
-      const productsResult = await query(
+      const productsResult = await pool.query(
         `
       SELECT 
         p.*, 
@@ -101,7 +114,7 @@ const authController = {
       );
 
       // Favoritos
-      const favoritesResult = await query(
+      const favoritesResult = await pool.query(
         `
       SELECT 
         f.*, 
@@ -138,6 +151,7 @@ const authController = {
 
       res.json({
         user,
+        address,
         products: productsResult.rows,
         favorites: favoritesResult.rows,
         token,
