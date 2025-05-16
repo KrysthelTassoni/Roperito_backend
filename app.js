@@ -1,6 +1,7 @@
 import express from "express";
 import logger from "morgan";
 import cors from "cors";
+import { swaggerUi, specs } from "./swagger.js";
 
 // Importar rutas
 import authRoutes from "./routes/auth.routes.js";
@@ -13,12 +14,15 @@ import metadataRoutes from "./routes/metadata.routes.js";
 import addressRoutes from "./routes/address.routes.js";
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3001;
 
 app.use(logger("dev"));
 app.use(express.json());
 app.use(cors());
 app.set("port", port);
+
+// Configuración Swagger
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, { explorer: true }));
 
 //LLAMAR RUTAS
 app.use("/api/auth", authRoutes);
@@ -41,6 +45,7 @@ if (process.env.NODE_ENV !== "test") {
   const port = process.env.PORT || 3001;
   app.listen(port, () => {
     console.log(`Servidor corriendo en el puerto ${port}`);
+    console.log(`Documentación Swagger disponible en: http://localhost:${port}/api-docs`);
   });
 }
 

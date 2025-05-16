@@ -103,9 +103,9 @@ CREATE TABLE ratings (
     UNIQUE (buyer_id, seller_id)
 );
 
--
+
 CREATE TABLE orders (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid()   ,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     product_id UUID NOT NULL,
     seller_id UUID NOT NULL,
     buyer_id UUID NOT NULL,
