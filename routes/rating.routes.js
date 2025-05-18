@@ -1,8 +1,8 @@
-import express from 'express';
-import { body } from 'express-validator';
-import ratingController from '../controllers/rating.controller.js';
-import validateRequest from '../middlewares/validator.middleware.js';
-import authMiddleware from '../middlewares/auth.middleware.js';
+import express from "express";
+import { body } from "express-validator";
+import ratingController from "../controllers/rating.controller.js";
+import validateRequest from "../middlewares/validator.middleware.js";
+import authMiddleware from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
@@ -11,35 +11,47 @@ router.use(authMiddleware);
 
 // Validaciones para crear calificación
 const ratingValidations = [
-    body('value').isFloat({ min: 1, max: 5 }).withMessage('La calificación debe estar entre 1 y 5'),
-    body('comment').optional().trim().isLength({ min: 10 }).withMessage('El comentario debe tener al menos 10 caracteres')
+  body("value")
+    .isFloat({ min: 1, max: 5 })
+    .withMessage("La calificación debe estar entre 1 y 5"),
+  body("comment")
+    .optional()
+    .trim()
+    .isLength({ min: 10 })
+    .withMessage("El comentario debe tener al menos 10 caracteres"),
 ];
 
 // Crear calificación para una orden
-router.post('/order/:orderId',
-    ratingValidations,
-    validateRequest,
-    ratingController.createRating
+router.post(
+  "/",
+  ratingValidations,
+  validateRequest,
+  ratingController.createRating
 );
 
 // Obtener calificaciones de un usuario
-router.get('/user/:userId', ratingController.getUserRatings);
+router.get("/user/:userId", ratingController.getRatings);
+
+// Verificar si el comprador ya valoró al vendedor
+router.get("/ifrating/:sellerId", ratingController.ifRatingSeller);
 
 // Actualizar una calificación
-router.put('/:id',
-    ratingValidations,
-    validateRequest,
-    ratingController.updateRating
+router.put(
+  "/:id",
+  ratingValidations,
+  validateRequest,
+  ratingController.updateRating
 );
 
 // Eliminar una calificación
-router.delete('/:id', ratingController.deleteRating);
+router.delete("/:id", ratingController.deleteRating);
 
 // Reportar una calificación
-router.post('/:id/report',
-    body('reason').notEmpty().withMessage('La razón del reporte es requerida'),
-    validateRequest,
-    ratingController.reportRating
+router.post(
+  "/:id/report",
+  body("reason").notEmpty().withMessage("La razón del reporte es requerida"),
+  validateRequest,
+  ratingController.reportRating
 );
 
-export default router; 
+export default router;

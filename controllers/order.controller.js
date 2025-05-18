@@ -1,4 +1,5 @@
 import pool from "../config/db.js";
+import { getIO } from "../socket.js";
 
 const orderController = {
   //Registrar mensaje del comprador
@@ -21,6 +22,7 @@ const orderController = {
       );
 
       if (productCheck.rows.length === 0) {
+        await pool.query("ROLLBACK");
         return res.status(404).json({ error: "Producto no encontrado" });
       }
 
@@ -28,6 +30,7 @@ const orderController = {
 
       // Verificar que el usuario no sea el vendedor
       if (product.user_id === userId) {
+        await pool.query("ROLLBACK");
         return res
           .status(400)
           .json({ error: "No puedes enviar mensajes a tu propio producto" });
@@ -39,15 +42,47 @@ const orderController = {
        VALUES ($1, $2, $3)
        ON CONFLICT (user_id, product_id) DO UPDATE
        SET message = EXCLUDED.message, created_at = NOW()
-       RETURNING *`,
+       RETURNING id`,
         [userId, product_id, message]
       );
 
+      // Traer toda la data necesaria para la card (con los campos correctos)
+      const enriched = await pool.query(
+        `SELECT 
+        pb.id,
+        pb.user_id AS buyer_id,
+        u.name AS buyer_name,
+        pb.created_at,
+        pb.message,
+        pb.responded_at,
+        pb.seller_response,
+        pb.product_id,
+        p.title AS product_title,
+        p.user_id AS seller_id,
+        su.name AS seller_name
+      FROM potential_buyers pb
+      JOIN users u ON pb.user_id = u.id
+      JOIN products p ON pb.product_id = p.id
+      JOIN users su ON p.user_id = su.id
+      WHERE pb.id = $1`,
+        [result.rows[0].id]
+      );
+
+      const fullMessageData = enriched.rows[0];
+
       await pool.query("COMMIT");
+
+      // Emitir evento al vendedor con data completa
+      const io = getIO();
+      for (let [socketId, socket] of io.of("/").sockets) {
+        if (socket.userId === product.user_id) {
+          socket.emit("nuevo_mensaje_comprador", fullMessageData);
+        }
+      }
 
       res.status(200).json({
         message: "Mensaje enviado exitosamente",
-        data: result.rows[0],
+        data: fullMessageData,
       });
     } catch (error) {
       await pool.query("ROLLBACK");
@@ -106,20 +141,66 @@ const orderController = {
     }
 
     try {
-      const query = `
+      await pool.query("BEGIN");
+
+      // 1. Actualizar respuesta del vendedor
+      const updateQuery = `
       UPDATE potential_buyers
       SET seller_response = $1, responded_at = NOW()
       WHERE id = $2
       RETURNING *;
     `;
-
-      const result = await pool.query(query, [
+      const result = await pool.query(updateQuery, [
         seller_response,
         potential_buyer_id,
       ]);
 
-      res.status(200).json({ success: true, data: result.rows[0] });
+      const updatedRow = result.rows[0];
+      if (!updatedRow) {
+        await pool.query("ROLLBACK");
+        return res.status(404).json({ message: "Registro no encontrado" });
+      }
+
+      // 2. Enriquecer con info del comprador y producto
+      const enriched = await pool.query(
+        `
+      SELECT 
+        pb.id,
+        pb.user_id AS buyer_id,
+        u.name AS buyer_name,
+        pb.product_id,
+        p.title AS product_title,
+        pb.message,
+        pb.created_at,
+        pb.seller_response,
+        pb.responded_at,
+        p.user_id AS seller_id,
+        seller.name AS seller_name
+      FROM potential_buyers pb
+      JOIN users u ON pb.user_id = u.id
+      JOIN products p ON pb.product_id = p.id
+      JOIN users seller ON p.user_id = seller.id
+      WHERE pb.id = $1
+    `,
+        [potential_buyer_id]
+      );
+
+      const fullResponse = enriched.rows[0];
+
+      // 3. Emitir socket al comprador
+      const io = getIO();
+      for (let [socketId, socket] of io.of("/").sockets) {
+        if (socket.userId === fullResponse.buyer_id) {
+          socket.emit("respuesta_vendedor", fullResponse);
+        }
+      }
+
+      await pool.query("COMMIT");
+
+      // 4. Devolver data completa al frontend
+      res.status(200).json({ success: true, data: fullResponse });
     } catch (error) {
+      await pool.query("ROLLBACK");
       console.error("Error al responder mensaje:", error);
       res.status(500).json({ message: "Error del servidor" });
     }

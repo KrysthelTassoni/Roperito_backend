@@ -40,7 +40,7 @@ router.use(authMiddleware);
 // Crear producto
 router.post(
   "/",
-  uploadMiddleware.array("images", 5),
+  uploadMiddleware.array("images", 3),
   productValidations,
   validateRequest,
   productController.createProduct

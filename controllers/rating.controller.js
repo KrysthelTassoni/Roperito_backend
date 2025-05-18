@@ -1,186 +1,136 @@
 import pool from "../config/db.js";
 
 const ratingController = {
-  // Crear una nueva calificación
+  // Crear una nueva calificación por orden
   createRating: async (req, res) => {
+    const client = await pool.connect();
     try {
-      const { order_id, rating, comment } = req.body;
+      const { order_id, value } = req.body;
       const user_id = req.user.id;
 
-      await pool.query("BEGIN");
+      await client.query("BEGIN");
 
-      // Verificar que la orden existe y está entregada
-      const orderCheck = await pool.query(
-        'SELECT o.*, p.user_id as seller_id FROM "order" o JOIN products p ON o.product_id = p.id WHERE o.id = $1',
+      // Verifica que la orden existe
+      const orderRes = await client.query(
+        `SELECT * FROM orders WHERE id = $1`,
         [order_id]
       );
 
-      if (orderCheck.rows.length === 0) {
+      if (orderRes.rows.length === 0) {
+        await client.query("ROLLBACK");
         return res.status(404).json({ error: "Orden no encontrada" });
       }
 
-      const order = orderCheck.rows[0];
+      const order = orderRes.rows[0];
 
-      // Verificar que el usuario es el comprador
+      // Asegura que el usuario es el comprador
       if (order.buyer_id !== user_id) {
+        await client.query("ROLLBACK");
         return res
           .status(403)
           .json({ error: "No autorizado para calificar esta orden" });
       }
 
-      // Verificar que la orden está entregada
-      if (order.status !== "entregada") {
+      // Asegura que la orden está en estado "vendido"
+      if (order.status !== "vendido") {
+        await client.query("ROLLBACK");
         return res
           .status(400)
-          .json({ error: "Solo se pueden calificar órdenes entregadas" });
+          .json({ error: "Solo se pueden calificar órdenes vendidas" });
       }
 
-      // Verificar que no existe una calificación previa
-      const ratingCheck = await pool.query(
-        "SELECT id FROM ratings WHERE order_id = $1",
-        [order_id]
+      // Verifica que no se haya calificado antes esta orden
+      const existingRating = await client.query(
+        `SELECT 1 FROM ratings WHERE buyer_id = $1 AND order_id = $2`,
+        [user_id, order_id]
       );
 
-      if (ratingCheck.rows.length > 0) {
-        return res
-          .status(400)
-          .json({ error: "Esta orden ya ha sido calificada" });
+      if (existingRating.rows.length > 0) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ error: "Ya calificaste esta orden" });
       }
 
-      // Crear la calificación
-      const ratingQuery = `
-                INSERT INTO ratings (order_id, product_id, buyer_id, seller_id, rating, comment)
-                VALUES ($1, $2, $3, $4, $5, $6)
-                RETURNING id
-            `;
-      const ratingResult = await pool.query(ratingQuery, [
-        order_id,
-        order.product_id,
-        user_id,
-        order.seller_id,
-        rating,
-        comment,
-      ]);
-
-      // Actualizar el promedio de calificaciones del vendedor
-      await pool.query(
-        `
-                UPDATE users 
-                SET rating = (
-                    SELECT AVG(rating)::numeric(2,1)
-                    FROM ratings
-                    WHERE seller_id = $1
-                )
-                WHERE id = $1
-            `,
-        [order.seller_id]
+      // Crea la calificación con order_id y seller_id
+      const insertRating = await client.query(
+        `INSERT INTO ratings (seller_id, buyer_id, value, order_id)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id`,
+        [order.seller_id, user_id, value, order_id]
       );
 
-      await pool.query("COMMIT");
+      await client.query("COMMIT");
 
       res.status(201).json({
-        message: "Calificación creada exitosamente",
-        ratingId: ratingResult.rows[0].id,
+        message: "Calificación registrada con éxito",
+        ratingId: insertRating.rows[0].id,
       });
     } catch (error) {
-      await pool.query("ROLLBACK");
+      await client.query("ROLLBACK");
       console.error("Error al crear la calificación:", error);
-      res.status(500).json({ error: "Error al crear la calificación" });
+      res.status(500).json({ error: "Error interno al crear la calificación" });
+    } finally {
+      client.release();
     }
   },
 
-  // Obtener calificaciones de un usuario
-  getUserRatings: async (req, res) => {
+  getRatings: async (req, res) => {
     try {
       const { userId } = req.params;
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
-      const offset = (page - 1) * limit;
 
       const query = `
-               SELECT r.*, 
-       p.title as product_title,
-       u.name as buyer_name,
-       pi.image_url as product_image
-FROM ratings r
-JOIN products p ON r.product_id = p.id
-JOIN users u ON r.buyer_id = u.id
-LEFT JOIN product_images pi ON p.id = pi.product_id
-WHERE r.seller_id = $1
-ORDER BY r.created_at DESC, pi."order" ASC
-LIMIT $2 OFFSET $3;
+      SELECT 
+        COUNT(*) AS total_ratings,
+        ROUND(AVG(value)::numeric, 2) AS average_rating
+      FROM ratings
+      WHERE seller_id = $1;
+    `;
 
-            `;
+      const result = await pool.query(query, [userId]);
 
-      const countQuery = "SELECT COUNT(*) FROM ratings WHERE seller_id = $1";
-
-      const [ratings, count] = await Promise.all([
-        pool.query(query, [userId, limit, offset]),
-        pool.query(countQuery, [userId]),
-      ]);
-
-      const totalPages = Math.ceil(count.rows[0].count / limit);
+      const { total_ratings, average_rating } = result.rows[0];
 
       res.json({
-        ratings: ratings.rows,
-        pagination: {
-          currentPage: page,
-          totalPages,
-          totalItems: parseInt(count.rows[0].count),
-          hasMore: page < totalPages,
-        },
+        sellerId: userId,
+        totalRatings: parseInt(total_ratings),
+        averageRating: parseFloat(average_rating) || 0,
       });
     } catch (error) {
-      console.error("Error al obtener las calificaciones:", error);
-      res.status(500).json({ error: "Error al obtener las calificaciones" });
-    }
-  },
-
-  // Obtener calificaciones de un producto
-  getProductRatings: async (req, res) => {
-    try {
-      const { productId } = req.params;
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
-      const offset = (page - 1) * limit;
-
-      const query = `
-                SELECT r.*,
-                       u.name as buyer_name,
-                       u.profile_image as buyer_image
-                FROM ratings r
-                JOIN users u ON r.buyer_id = u.id
-                WHERE r.product_id = $1
-                ORDER BY r.created_at DESC
-                LIMIT $2 OFFSET $3
-            `;
-
-      const countQuery = "SELECT COUNT(*) FROM ratings WHERE product_id = $1";
-
-      const [ratings, count] = await Promise.all([
-        pool.query(query, [productId, limit, offset]),
-        pool.query(countQuery, [productId]),
-      ]);
-
-      const totalPages = Math.ceil(count.rows[0].count / limit);
-
-      res.json({
-        ratings: ratings.rows,
-        pagination: {
-          currentPage: page,
-          totalPages,
-          totalItems: parseInt(count.rows[0].count),
-          hasMore: page < totalPages,
-        },
-      });
-    } catch (error) {
-      console.error("Error al obtener las calificaciones del producto:", error);
+      console.error("Error al obtener resumen de valoraciones:", error);
       res
         .status(500)
-        .json({ error: "Error al obtener las calificaciones del producto" });
+        .json({ error: "Error al obtener resumen de valoraciones" });
     }
   },
 
+  ifRatingSeller: async (req, res) => {
+    try {
+      const buyerId = req.user.id;
+      const { sellerId } = req.params;
+
+      //Validar si el usuario intenta valorarse a sí mismo
+      if (buyerId === sellerId) {
+        return res.status(403).json({
+          error: "Un usuario no puede valorarse a sí mismo.",
+        });
+      }
+
+      const query = `
+      SELECT 1
+      FROM ratings
+      WHERE seller_id = $1 AND buyer_id = $2
+      LIMIT 1;
+    `;
+
+      const result = await pool.query(query, [sellerId, buyerId]);
+
+      const hasRated = result.rowCount > 0;
+
+      res.json({ hasRated });
+    } catch (error) {
+      console.error("Error al verificar si ya fue valorado:", error);
+      res.status(500).json({ error: "Error al verificar valoración" });
+    }
+  },
   // Actualizar una calificación
   updateRating: async (req, res) => {
     try {

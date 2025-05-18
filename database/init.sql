@@ -96,12 +96,20 @@ CREATE TABLE ratings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     seller_id UUID NOT NULL,
     buyer_id UUID NOT NULL,
-    value DECIMAL(2,1) NOT NULL,
+    order_id UUID NOT NULL,
+    value DECIMAL(2,1) NOT NULL CHECK (value >= 0 AND value <= 5),
     created_at TIMESTAMP DEFAULT NOW(),
+    -- Claves foráneas
     FOREIGN KEY (seller_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (buyer_id) REFERENCES users(id) ON DELETE CASCADE,
-    UNIQUE (buyer_id, seller_id)
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    -- Restricción: no se puede repetir calificación por orden
+    UNIQUE (buyer_id, order_id)
 );
+-- Eliminamos UNIQUE(buyer_id, seller_id) porque ahora puede haber más de una calificación del mismo comprador al mismo vendedor, si hay varias órdenes.
+-- Agregamos UNIQUE(buyer_id, order_id) para asegurarnos de que cada orden solo se pueda calificar una vez por ese comprador.
+-- Se incluye CHECK para limitar el valor de value entre 0 y 5
+
 
 
 CREATE TABLE orders (
