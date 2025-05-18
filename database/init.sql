@@ -65,10 +65,13 @@ CREATE TABLE products (
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
     is_active BOOLEAN DEFAULT TRUE,
+    favorites_count INTEGER DEFAULT 0 NOT NULL
+    CHECK (favorites_count >= 0),
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (category_id) REFERENCES categories(id),
     FOREIGN KEY (size_id) REFERENCES sizes(id)
 );
+
 
 
 CREATE TABLE product_images (
@@ -99,11 +102,9 @@ CREATE TABLE ratings (
     order_id UUID NOT NULL,
     value DECIMAL(2,1) NOT NULL CHECK (value >= 0 AND value <= 5),
     created_at TIMESTAMP DEFAULT NOW(),
-    -- Claves foráneas
     FOREIGN KEY (seller_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (buyer_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-    -- Restricción: no se puede repetir calificación por orden
     UNIQUE (buyer_id, order_id)
 );
 -- Eliminamos UNIQUE(buyer_id, seller_id) porque ahora puede haber más de una calificación del mismo comprador al mismo vendedor, si hay varias órdenes.
@@ -130,9 +131,11 @@ CREATE TABLE potential_buyers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL,
     product_id UUID NOT NULL,
-    message TEXT, -- Opcional: mensaje que deja el comprador interesado
+    message TEXT, 
     created_at TIMESTAMP DEFAULT NOW(),
+    seller_response TEXT,
+    responded_at TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-    UNIQUE (user_id, product_id) -- Para evitar duplicados
+    UNIQUE (user_id, product_id) 
 );

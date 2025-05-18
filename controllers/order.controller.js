@@ -285,7 +285,7 @@ const orderController = {
       const sellerId = product.seller_id;
       const price = product.price;
 
-      // (Opcional) Verificar que el buyer_id esté entre los potenciales compradores
+      // Verificar que el comprador haya mostrado interés
       const buyerCheck = await pool.query(
         `SELECT 1 FROM potential_buyers WHERE product_id = $1 AND user_id = $2`,
         [product_id, buyer_id]
@@ -305,11 +305,53 @@ const orderController = {
         [product_id, sellerId, buyer_id, price, "vendido"]
       );
 
+      const createdOrder = orderResult.rows[0];
+
+      const fullResponseQuery = await pool.query(
+        `
+  SELECT 
+    o.id,
+    o.product_id,
+    o.buyer_id,
+    o.price,
+    o.status,
+    o.created_at,
+    u1.name AS seller_name,
+    u2.name AS buyer_name,
+    p.title AS product_title,
+    p.price AS product_price,
+    pi.image_url AS product_image
+  FROM orders o
+  JOIN users u1 ON o.seller_id = u1.id
+  JOIN users u2 ON o.buyer_id = u2.id
+  JOIN products p ON o.product_id = p.id
+  LEFT JOIN LATERAL (
+    SELECT image_url
+    FROM product_images
+    WHERE product_id = p.id
+    ORDER BY "order" ASC
+    LIMIT 1
+  ) pi ON true
+  WHERE o.id = $1
+  `,
+        [createdOrder.id]
+      );
+
+      const fullResponse = fullResponseQuery.rows[0];
+      console.log("FULLRESPONSE", fullResponse);
       await pool.query("COMMIT");
+
+      // Emitir socket al comprador
+      const io = getIO();
+      for (let [socketId, socket] of io.of("/").sockets) {
+        if (socket.userId === fullResponse.buyer_id) {
+          socket.emit("orden_compraventa", fullResponse);
+        }
+      }
 
       return res.status(201).json({
         message: "Orden creada exitosamente",
-        data: orderResult.rows[0],
+        data: fullResponse,
       });
     } catch (error) {
       await pool.query("ROLLBACK");
@@ -317,6 +359,7 @@ const orderController = {
       return res.status(500).json({ error: "Error interno del servidor" });
     }
   },
+
   // Obtener una orden específica
   getOrderById: async (req, res) => {
     try {
@@ -364,9 +407,9 @@ LIMIT 1;
     }
 
     try {
-      // Buscar orden con ese product_id y que el usuario sea comprador o vendedor
+      // Buscar la orden que se va a eliminar
       const orderResult = await pool.query(
-        `SELECT * FROM orders WHERE product_id = $1 AND (buyer_id = $2 OR seller_id = $2)`,
+        `SELECT id, buyer_id, seller_id FROM orders WHERE product_id = $1 AND (buyer_id = $2 OR seller_id = $2)`,
         [product_id, userId]
       );
 
@@ -376,13 +419,22 @@ LIMIT 1;
           .json({ error: "Orden no encontrada para ese producto y usuario" });
       }
 
-      // Eliminar la orden
-      await pool.query(
-        `DELETE FROM orders WHERE product_id = $1 AND (buyer_id = $2 OR seller_id = $2)`,
-        [product_id, userId]
-      );
+      const { id: orderId, buyer_id, seller_id } = orderResult.rows[0];
 
-      return res.status(200).json({ message: "Orden eliminada exitosamente" });
+      // Eliminar la orden
+      await pool.query(`DELETE FROM orders WHERE id = $1`, [orderId]);
+
+      // Emitir socket al comprador y vendedor
+      const io = getIO();
+      for (let [socketId, socket] of io.of("/").sockets) {
+        if (socket.userId === buyer_id || socket.userId === seller_id) {
+          socket.emit("orden_cancelada", { order_id: orderId });
+        }
+      }
+
+      return res
+        .status(200)
+        .json({ message: "Orden eliminada exitosamente", order_id: orderId });
     } catch (error) {
       console.error("Error al eliminar orden:", error);
       return res.status(500).json({ error: "Error interno del servidor" });
