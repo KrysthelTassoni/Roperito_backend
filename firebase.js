@@ -2,7 +2,7 @@
 import { initializeApp, cert } from "firebase-admin/app";
 import { getStorage } from "firebase-admin/storage";
 
-const serviceAccount = "roperito-4d180-firebase-adminsdk-fbsvc-ae4aa8ac1e.json"; // Reemplaza con la ruta a tu archivo de cuenta de servicio
+const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT; // Reemplaza con la ruta a tu archivo de cuenta de servicio
 
 // Inicializa la aplicación Firebase
 const app = initializeApp({
