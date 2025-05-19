@@ -13,9 +13,9 @@ const developmentConection = {
 
 const productionConnection = {
   connectionString: process.env.DB_URL_CONNECTION,
-  ssl: {
+  /* ssl: {
     rejectUnauthorized: false,
-  },
+  },*/
   allowExitOnIdle: true,
 };
 
