@@ -135,7 +135,7 @@ const ratingController = {
   updateRating: async (req, res) => {
     try {
       const { id } = req.params;
-      const { rating, comment } = req.body;
+      const { value } = req.body;
       const user_id = req.user.id;
 
       await pool.query("BEGIN");
@@ -158,22 +158,8 @@ const ratingController = {
 
       // Actualizar la calificación
       await pool.query(
-        "UPDATE ratings SET rating = $1, comment = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3",
-        [rating, comment, id]
-      );
-
-      // Actualizar el promedio de calificaciones del vendedor
-      await pool.query(
-        `
-                UPDATE users 
-                SET rating = (
-                    SELECT AVG(rating)::numeric(2,1)
-                    FROM ratings
-                    WHERE seller_id = $1
-                )
-                WHERE id = $1
-            `,
-        [ratingCheck.rows[0].seller_id]
+        "UPDATE ratings SET value = $1 WHERE id = $2",
+        [value, id]
       );
 
       await pool.query("COMMIT");
@@ -213,20 +199,6 @@ const ratingController = {
       // Eliminar la calificación
       await pool.query("DELETE FROM ratings WHERE id = $1", [id]);
 
-      // Actualizar el promedio de calificaciones del vendedor
-      await pool.query(
-        `
-                UPDATE users 
-                SET rating = (
-                    SELECT COALESCE(AVG(rating)::numeric(2,1), 0)
-                    FROM ratings
-                    WHERE seller_id = $1
-                )
-                WHERE id = $1
-            `,
-        [ratingCheck.rows[0].seller_id]
-      );
-
       await pool.query("COMMIT");
 
       res.json({ message: "Calificación eliminada exitosamente" });
@@ -234,59 +206,6 @@ const ratingController = {
       await pool.query("ROLLBACK");
       console.error("Error al eliminar la calificación:", error);
       res.status(500).json({ error: "Error al eliminar la calificación" });
-    }
-  },
-
-  // Reportar una calificación
-  reportRating: async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { reason } = req.body;
-      const user_id = req.user.id;
-
-      await pool.query("BEGIN");
-
-      // Verificar que la calificación existe
-      const ratingCheck = await pool.query(
-        "SELECT id FROM ratings WHERE id = $1",
-        [id]
-      );
-
-      if (ratingCheck.rows.length === 0) {
-        return res.status(404).json({ error: "Calificación no encontrada" });
-      }
-
-      // Verificar si ya existe un reporte del mismo usuario
-      const reportCheck = await pool.query(
-        "SELECT id FROM rating_reports WHERE rating_id = $1 AND reported_by = $2",
-        [id, user_id]
-      );
-
-      if (reportCheck.rows.length > 0) {
-        return res
-          .status(400)
-          .json({ error: "Ya has reportado esta calificación" });
-      }
-
-      // Crear el reporte
-      await pool.query(
-        "INSERT INTO rating_reports (rating_id, reported_by, reason) VALUES ($1, $2, $3)",
-        [id, user_id, reason]
-      );
-
-      // Actualizar contador de reportes en la calificación
-      await pool.query(
-        "UPDATE ratings SET report_count = report_count + 1 WHERE id = $1",
-        [id]
-      );
-
-      await pool.query("COMMIT");
-
-      res.status(201).json({ message: "Calificación reportada exitosamente" });
-    } catch (error) {
-      await pool.query("ROLLBACK");
-      console.error("Error al reportar calificación:", error);
-      res.status(500).json({ error: "Error al reportar calificación" });
     }
   },
 };

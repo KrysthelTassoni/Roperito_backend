@@ -34,13 +34,129 @@ const updateValidations = [
     .withMessage("El país es requerido"),
 ];
 
+/**
+ * @swagger
+ * tags:
+ *   name: Usuarios
+ *   description: Gestión del perfil y datos del usuario
+ */
+
 // Rutas protegidas (requieren autenticación)
 router.use(authMiddleware);
 
-// Obtener perfil del usuario actual
+/**
+ * @swagger
+ * /api/users/me:
+ *   get:
+ *     summary: Obtener perfil del usuario autenticado
+ *     tags: [Usuarios]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Perfil del usuario obtenido correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *                 address:
+ *                   type: object
+ *                   properties:
+ *                     city:
+ *                       type: string
+ *                     region:
+ *                       type: string
+ *                     country:
+ *                       type: string
+ *       401:
+ *         description: No autorizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Error del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get("/me", userController.getProfile);
 
-// Actualizar perfil del usuario
+/**
+ * @swagger
+ * /api/users/me:
+ *   put:
+ *     summary: Actualizar perfil del usuario
+ *     tags: [Usuarios]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: José García
+ *               phone:
+ *                 type: string
+ *                 example: "+56912345678"
+ *               address:
+ *                 type: object
+ *                 properties:
+ *                   city:
+ *                     type: string
+ *                     example: Santiago
+ *                   region:
+ *                     type: string
+ *                     example: Metropolitana
+ *                   country:
+ *                     type: string
+ *                     example: Chile
+ *     responses:
+ *       200:
+ *         description: Perfil actualizado correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *                 address:
+ *                   type: object
+ *                   properties:
+ *                     city:
+ *                       type: string
+ *                     region:
+ *                       type: string
+ *                     country:
+ *                       type: string
+ *       400:
+ *         description: Datos inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: No autorizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Error del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.put(
   "/me",
   updateValidations,
@@ -48,22 +164,237 @@ router.put(
   userController.updateProfile
 );
 
-// Obtener productos del usuario
+/**
+ * @swagger
+ * /api/users/products:
+ *   get:
+ *     summary: Obtener productos del usuario
+ *     tags: [Usuarios]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de productos del usuario
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Product'
+ *       401:
+ *         description: No autorizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Error del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get("/products", userController.getUserProducts);
 
-// Obtener favoritos del usuario
+/**
+ * @swagger
+ * /api/users/favorites:
+ *   get:
+ *     summary: Obtener favoritos del usuario
+ *     tags: [Usuarios]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de productos favoritos del usuario
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   product_id:
+ *                     type: string
+ *                   title:
+ *                     type: string
+ *                   price:
+ *                     type: number
+ *                   images:
+ *                     type: array
+ *                     items:
+ *                       type: object
+ *       401:
+ *         description: No autorizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Error del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get("/favorites", userController.getUserFavorites);
 
-// Obtener órdenes del usuario (como comprador)
+/**
+ * @swagger
+ * /api/users/orders/buying:
+ *   get:
+ *     summary: Obtener órdenes del usuario como comprador
+ *     tags: [Usuarios]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de órdenes como comprador
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Order'
+ *       401:
+ *         description: No autorizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Error del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get("/orders/buying", userController.getBuyingOrders);
 
-// Obtener órdenes del usuario (como vendedor)
+/**
+ * @swagger
+ * /api/users/orders/selling:
+ *   get:
+ *     summary: Obtener órdenes del usuario como vendedor
+ *     tags: [Usuarios]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de órdenes como vendedor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Order'
+ *       401:
+ *         description: No autorizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Error del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get("/orders/selling", userController.getSellingOrders);
 
-// Obtener calificaciones recibidas
+/**
+ * @swagger
+ * /api/users/ratings/received:
+ *   get:
+ *     summary: Obtener calificaciones recibidas
+ *     tags: [Usuarios]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de calificaciones recibidas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   value:
+ *                     type: number
+ *                   comment:
+ *                     type: string
+ *                   rater_id:
+ *                     type: string
+ *                   rater_name:
+ *                     type: string
+ *                   created_at:
+ *                     type: string
+ *                     format: date-time
+ *       401:
+ *         description: No autorizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Error del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get("/ratings/received", userController.getReceivedRatings);
 
-// Obtener calificaciones dadas
+/**
+ * @swagger
+ * /api/users/ratings/given:
+ *   get:
+ *     summary: Obtener calificaciones dadas
+ *     tags: [Usuarios]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de calificaciones dadas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   value:
+ *                     type: number
+ *                   comment:
+ *                     type: string
+ *                   rated_id:
+ *                     type: string
+ *                   rated_name:
+ *                     type: string
+ *                   created_at:
+ *                     type: string
+ *                     format: date-time
+ *       401:
+ *         description: No autorizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Error del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get("/ratings/given", userController.getGivenRatings);
 
 export default router;

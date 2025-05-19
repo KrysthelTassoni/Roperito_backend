@@ -95,6 +95,20 @@ CREATE TABLE favorites (
 );
 
 
+CREATE TABLE orders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    product_id UUID NOT NULL,
+    seller_id UUID NOT NULL,
+    buyer_id UUID NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    status VARCHAR(20),
+    created_at TIMESTAMP DEFAULT NOW(),
+    FOREIGN KEY (product_id) REFERENCES products(id),
+    FOREIGN KEY (seller_id) REFERENCES users(id),
+    FOREIGN KEY (buyer_id) REFERENCES users(id)
+);
+
+
 CREATE TABLE ratings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     seller_id UUID NOT NULL,
@@ -110,21 +124,6 @@ CREATE TABLE ratings (
 -- Eliminamos UNIQUE(buyer_id, seller_id) porque ahora puede haber más de una calificación del mismo comprador al mismo vendedor, si hay varias órdenes.
 -- Agregamos UNIQUE(buyer_id, order_id) para asegurarnos de que cada orden solo se pueda calificar una vez por ese comprador.
 -- Se incluye CHECK para limitar el valor de value entre 0 y 5
-
-
-
-CREATE TABLE orders (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    product_id UUID NOT NULL,
-    seller_id UUID NOT NULL,
-    buyer_id UUID NOT NULL,
-    price DECIMAL(10,2) NOT NULL,
-    status VARCHAR(20),
-    created_at TIMESTAMP DEFAULT NOW(),
-    FOREIGN KEY (product_id) REFERENCES products(id),
-    FOREIGN KEY (seller_id) REFERENCES users(id),
-    FOREIGN KEY (buyer_id) REFERENCES users(id)
-);
 
 
 CREATE TABLE potential_buyers (
