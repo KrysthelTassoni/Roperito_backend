@@ -12,7 +12,7 @@ const options = {
     },
     servers: [
       {
-        url: "http://localhost:3001",
+        url: "https://roperito-backend.onrender.com/",
         description: "Servidor de desarrollo",
       },
     ],
@@ -31,7 +31,7 @@ const options = {
     "./routes/*.js",
     "./controllers/*.js",
     "./models/*.js",
-    "./swagger/*.js"
+    "./swagger/*.js",
   ],
 };
 
@@ -39,7 +39,9 @@ const swaggerSpec = swaggerJSDoc(options);
 
 const setupSwagger = (app) => {
   app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-  console.log("Documentación de Swagger disponible en http://localhost:3001/api-docs");
+  console.log(
+    "Documentación de Swagger disponible en http://localhost:3001/api-docs"
+  );
 };
 
-export default setupSwagger; 
+export default setupSwagger;
