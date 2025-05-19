@@ -163,8 +163,9 @@ const productController = {
       console.log("BODY:", req.body);
       console.log("IMAGES: ", req.files);
       console.log("VALIDATION ERRORS:", validationResult(req).array());
-      
-      const { title, description, price, category_id, size_id, status } = req.body;
+
+      const { title, description, price, category_id, size_id, status } =
+        req.body;
       const userId = req.user.id;
       const files = req.files;
 
@@ -205,7 +206,21 @@ const productController = {
           for (let i = 0; i < files.length; i++) {
             const file = files[i];
             const uniqueName = `${uuidv4()}${path.extname(file.originalname)}`;
-            const blob = bucket.file(`products/${uniqueName}`);
+            const slugify = (str) =>
+              str
+                .toString()
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "") // quitar acentos
+                .replace(/\s+/g, "-") // espacios por guiones
+                .replace(/[^\w\-]+/g, "") // eliminar caracteres no válidos
+                .replace(/\-\-+/g, "-") // colapsar guiones
+                .replace(/^-+|-+$/g, ""); // quitar guiones al inicio y fin
+
+            const shortId = productId.slice(0, 5);
+            const folderName = `${slugify(title)}-${shortId}`;
+            const blob = bucket.file(`products/${folderName}/${uniqueName}`);
+
             const blobStream = blob.createWriteStream({
               metadata: {
                 contentType: file.mimetype,
@@ -220,7 +235,9 @@ const productController = {
 
             const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${
               bucket.name
-            }/o/${encodeURIComponent(`products/${uniqueName}`)}?alt=media`;
+            }/o/${encodeURIComponent(
+              `products/${folderName}/${uniqueName}`
+            )}?alt=media`;
 
             imageValues.push({
               product_id: productId,
@@ -265,7 +282,7 @@ const productController = {
 
         res.status(201).json({
           message: "Producto creado exitosamente",
-          product: finalProduct.rows[0]
+          product: finalProduct.rows[0],
         });
       } catch (error) {
         await pool.query("ROLLBACK");
@@ -273,9 +290,9 @@ const productController = {
       }
     } catch (error) {
       console.error("Error al crear producto:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Error al crear el producto",
-        details: error.message 
+        details: error.message,
       });
     }
   },
@@ -364,9 +381,9 @@ const productController = {
       const files = req.files;
       const userId = req.user.id;
 
-      // Validación de ownership
+      // Validar que el producto pertenece al usuario
       const productCheck = await pool.query(
-        "SELECT id FROM products WHERE id = $1 AND user_id = $2",
+        "SELECT id, title FROM products WHERE id = $1 AND user_id = $2",
         [productId, userId]
       );
       if (productCheck.rowCount === 0) {
@@ -375,18 +392,24 @@ const productController = {
           .json({ error: "No tienes permisos para modificar este producto" });
       }
 
+      const productTitle = productCheck.rows[0].title;
+      const productFolder = `${productTitle}-${productId.slice(0, 5)}`;
+
+      // Imágenes que el usuario quiere mantener (vienen en el body como JSON string)
       const keepImages = req.body.existing_images
-        ? JSON.parse(req.body.existing_images)
+        ? JSON.parse(req.body.existing_images).filter((url) =>
+            url.startsWith("https://firebasestorage.googleapis.com/")
+          )
         : [];
 
-      // Obtener imágenes actuales
+      // Obtener imágenes actuales en la base de datos
       const oldImagesQuery = await pool.query(
         "SELECT image_url FROM product_images WHERE product_id = $1",
         [productId]
       );
       const oldImages = oldImagesQuery.rows.map((row) => row.image_url);
 
-      // Eliminar imágenes que ya no están
+      // Detectar y eliminar imágenes que ya no se deben conservar
       const imagesToDelete = oldImages.filter(
         (url) => !keepImages.includes(url)
       );
@@ -399,17 +422,19 @@ const productController = {
         } catch (err) {
           console.warn(`No se pudo eliminar ${filePath}:`, err.message);
         }
+
+        // Eliminar referencia de la base de datos
         await pool.query(
           "DELETE FROM product_images WHERE product_id = $1 AND image_url = $2",
           [productId, imageUrl]
         );
       }
 
-      // Subir nuevas imágenes
+      // Subir nuevas imágenes a Firebase y recolectar sus URLs públicas
       const newImages = [];
       for (const file of files) {
         const uniqueName = `${uuidv4()}${path.extname(file.originalname)}`;
-        const blob = bucket.file(`products/${uniqueName}`);
+        const blob = bucket.file(`products/${productFolder}/${uniqueName}`);
         const blobStream = blob.createWriteStream({
           metadata: { contentType: file.mimetype },
         });
@@ -422,43 +447,34 @@ const productController = {
 
         const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${
           bucket.name
-        }/o/${encodeURIComponent(`products/${uniqueName}`)}?alt=media`;
+        }/o/${encodeURIComponent(
+          `products/${productFolder}/${uniqueName}`
+        )}?alt=media`;
 
         newImages.push(publicUrl);
       }
 
-      // Recalcular orden desde 1
-      const allImagesOrdered = [...keepImages, ...newImages].map(
-        (url, index) => ({
-          url,
-          order: index + 1,
-        })
-      );
+      // Eliminar TODAS las referencias anteriores del producto (sin tocar otros productos)
+      await pool.query("DELETE FROM product_images WHERE product_id = $1", [
+        productId,
+      ]);
 
-      // Actualizar el orden de todas las imágenes (tanto las existentes como las nuevas)
-      for (const { url, order } of allImagesOrdered) {
-        const existsInDB = keepImages.includes(url);
-        if (existsInDB) {
-          await pool.query(
-            `UPDATE product_images SET "order" = $1 WHERE product_id = $2 AND image_url = $3`,
-            [order, productId, url]
-          );
-        } else {
-          // Insertar nuevas imágenes con el nuevo orden
-          await pool.query(
-            `INSERT INTO product_images (product_id, image_url, "order") VALUES ($1, $2, $3)`,
-            [productId, url, order]
-          );
-        }
+      // Insertar imágenes actualizadas con orden nuevo desde 1
+      const allImages = [...keepImages, ...newImages];
+      for (let i = 0; i < allImages.length; i++) {
+        await pool.query(
+          `INSERT INTO product_images (product_id, image_url, "order") VALUES ($1, $2, $3)`,
+          [productId, allImages[i], i + 1]
+        );
       }
 
-      res.status(200).json({
+      return res.status(200).json({
         message: "Imágenes actualizadas correctamente",
-        urls: allImagesOrdered.map((img) => img.url),
+        urls: allImages,
       });
     } catch (error) {
       console.error("Error al actualizar las imágenes:", error);
-      res.status(500).json({
+      return res.status(500).json({
         error: "Error al actualizar las imágenes del producto",
       });
     }
