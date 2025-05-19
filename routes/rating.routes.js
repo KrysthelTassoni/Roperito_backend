@@ -33,7 +33,7 @@ router.post(
 router.get("/user/:userId", ratingController.getRatings);
 
 // Verificar si el comprador ya valoró al vendedor
-router.get("/ifrating/:sellerId", ratingController.ifRatingSeller);
+router.get("/ifrating", ratingController.ifRatingSeller);
 
 // Actualizar una calificación
 router.put(

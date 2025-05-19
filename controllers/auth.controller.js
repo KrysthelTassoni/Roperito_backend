@@ -57,7 +57,7 @@ const authController = {
       const { email, password } = req.body;
 
       const result = await pool.query(
-        "SELECT id, name, email, password_hash FROM users WHERE email = $1",
+        "SELECT id, name, email, phone_number, password_hash FROM users WHERE email = $1",
         [email]
       );
 
@@ -144,12 +144,13 @@ const authController = {
 
       const ordersBoughtResult = await pool.query(
         `
-      SELECT 
+     SELECT 
   o.id,
   o.product_id,
   o.price,
   o.status,
   o.created_at,
+  o.seller_id,
   p.title AS product_title,
   p.price AS product_price,
   (
@@ -167,6 +168,7 @@ JOIN users u_seller ON o.seller_id = u_seller.id
 JOIN users u_buyer ON o.buyer_id = u_buyer.id
 WHERE o.buyer_id = $1
 ORDER BY o.created_at DESC;
+
 
       `,
         [user.id]
