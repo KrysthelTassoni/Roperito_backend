@@ -147,7 +147,7 @@ router.get("/user/:userId", ratingController.getRatings);
 
 /**
  * @swagger
- * /api/ratings/ifrating/{sellerId}:
+ * /api/ratings/ifrating
  *   get:
  *     summary: Verificar si el comprador autenticado ya valoró al vendedor especificado
  *     description: Este endpoint permite a un comprador verificar si ya ha calificado a un vendedor específico. No permite a vendedores verificar si han sido calificados por un comprador específico.
