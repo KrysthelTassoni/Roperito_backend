@@ -531,6 +531,7 @@ const productController = {
   },
 
   // Actualizar estado del producto
+  // Actualizar estado del producto
   updateProductStatus: async (req, res) => {
     try {
       const { id } = req.params;
@@ -553,12 +554,59 @@ const productController = {
           .json({ error: "No autorizado para modificar este producto" });
       }
 
+      // Actualizar el estado y retornar el producto base
       const result = await pool.query(
         "UPDATE products SET status = $1 WHERE id = $2 RETURNING *",
         [status, id]
       );
 
-      res.json(result.rows[0]);
+      const product = result.rows[0];
+
+      // Obtener joins adicionales
+      const extraData = await pool.query(
+        `
+      SELECT 
+        c.name AS category_name,
+        s.name AS size_name,
+        u.name AS seller_name,
+        u.email AS seller_email,
+        u.created_at AS seller_created_at,
+        u.phone_number AS seller_phone_number
+      FROM products p
+      JOIN categories c ON p.category_id = c.id
+      JOIN sizes s ON p.size_id = s.id
+      JOIN users u ON p.user_id = u.id
+      WHERE p.id = $1
+    `,
+        [id]
+      );
+
+      const joins = extraData.rows[0];
+
+      // Agregar joins al producto
+      product.category_name = joins.category_name;
+      product.size_name = joins.size_name;
+      product.seller = {
+        id: product.user_id,
+        name: joins.seller_name,
+        email: joins.seller_email,
+        created_at: joins.seller_created_at,
+        phone_number: joins.seller_phone_number,
+      };
+
+      // Obtener imágenes (fix: usar "order" con comillas)
+      const imageResult = await pool.query(
+        `SELECT id, image_url, "order" FROM product_images WHERE product_id = $1 ORDER BY "order" ASC`,
+        [id]
+      );
+
+      product.images = imageResult.rows;
+
+      // Emitir evento a todos los conectados
+      const io = getIO();
+      io.emit("cambio_status", product);
+
+      res.json(product);
     } catch (error) {
       console.error("Error al actualizar el estado del producto:", error);
       res

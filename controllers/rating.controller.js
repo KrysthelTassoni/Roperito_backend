@@ -105,32 +105,30 @@ const ratingController = {
   ifRatingSeller: async (req, res) => {
     try {
       const buyerId = req.user.id;
-      const { sellerId } = req.params;
-
-      //Validar si el usuario intenta valorarse a sí mismo
-      if (buyerId === sellerId) {
-        return res.status(403).json({
-          error: "Un usuario no puede valorarse a sí mismo.",
-        });
-      }
 
       const query = `
-      SELECT 1
-      FROM ratings
-      WHERE seller_id = $1 AND buyer_id = $2
+      SELECT o.id AS order_id, o.seller_id, o.created_at
+      FROM orders o
+      LEFT JOIN ratings r ON o.id = r.order_id
+      WHERE o.buyer_id = $1
+        AND o.status = 'vendido'
+        AND r.id IS NULL
+      ORDER BY o.created_at ASC
       LIMIT 1;
     `;
 
-      const result = await pool.query(query, [sellerId, buyerId]);
+      const result = await pool.query(query, [buyerId]);
 
-      const hasRated = result.rowCount > 0;
-
-      res.json({ hasRated });
+      res.json({
+        OrderId: result.rows[0]?.order_id || null,
+        sellerId: result.rows[0]?.seller_id || null,
+      });
     } catch (error) {
       console.error("Error al verificar si ya fue valorado:", error);
       res.status(500).json({ error: "Error al verificar valoración" });
     }
   },
+
   // Actualizar una calificación
   updateRating: async (req, res) => {
     try {

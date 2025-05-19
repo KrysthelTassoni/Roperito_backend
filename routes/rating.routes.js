@@ -144,6 +144,7 @@ router.post(
  */
 router.get("/user/:userId", ratingController.getRatings);
 
+
 /**
  * @swagger
  * /api/ratings/ifrating/{sellerId}:
@@ -186,6 +187,7 @@ router.get("/user/:userId", ratingController.getRatings);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get("/ifrating/:sellerId", ratingController.ifRatingSeller);
+// Verificar si el comprador ya valoró al vendedor
+router.get("/ifrating", ratingController.ifRatingSeller);
 
 export default router;
