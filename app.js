@@ -33,6 +33,10 @@ app.set("port", port);
 // Configurar Swagger
 setupSwagger(app);
 
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "OK" });
+});
+
 // Rutas
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
@@ -47,9 +51,6 @@ app.use((req, res) => {
   res.status(404).json({ error: "Ruta no encontrada" });
 });
 
-app.get("/health", (req, res) => {
-  res.status(200).json({ status: "OK" });
-});
 // Servidor HTTP + Socket.IO
 if (process.env.NODE_ENV !== "test") {
   const server = createServer(app); // Crear servidor HTTP
