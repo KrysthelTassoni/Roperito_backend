@@ -8,6 +8,9 @@ import { setIO, authenticateSocket } from "./socket.js";
 import dotenv from "dotenv";
 dotenv.config();
 
+// Importar configuración de Swagger
+import setupSwagger from "./swagger.js";
+
 // Importar rutas
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
@@ -26,6 +29,9 @@ app.use(logger("dev"));
 app.use(express.json());
 app.use(cors());
 app.set("port", port);
+
+// Configurar Swagger
+setupSwagger(app);
 
 // Rutas
 app.use("/api/auth", authRoutes);
@@ -78,6 +84,7 @@ if (process.env.NODE_ENV !== "test") {
 
   server.listen(port, () => {
     console.log(`Servidor corriendo en el puerto ${port}`);
+    console.log(`Documentación de Swagger disponible en http://localhost:${port}/api-docs`);
   });
 }
 
