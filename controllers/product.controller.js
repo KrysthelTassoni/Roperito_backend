@@ -163,122 +163,120 @@ const productController = {
       console.log("BODY:", req.body);
       console.log("IMAGES: ", req.files);
       console.log("VALIDATION ERRORS:", validationResult(req).array());
-      const { title, description, price, category_id, size_id, status } =
-        req.body;
+      
+      const { title, description, price, category_id, size_id, status } = req.body;
       const userId = req.user.id;
       const files = req.files;
+
+      if (!title || !description || !price || !category_id || !size_id) {
+        return res.status(400).json({ error: "Faltan campos requeridos" });
+      }
 
       // Iniciar la transacción
       await pool.query("BEGIN");
 
-      // Insertar producto
-      const productQuery = `
-      INSERT INTO products (user_id, title, description, price, category_id, size_id, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING id
-    `;
-      const productResult = await pool.query(productQuery, [
-        userId,
-        title,
-        description,
-        price,
-        category_id,
-        size_id,
-        status || "disponible",
-      ]);
-      const productId = productResult.rows[0].id;
+      try {
+        // Insertar producto
+        const productQuery = `
+          INSERT INTO products (user_id, title, description, price, category_id, size_id, status)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
+          RETURNING id
+        `;
+        const productResult = await pool.query(productQuery, [
+          userId,
+          title,
+          description,
+          price,
+          category_id,
+          size_id,
+          status || "disponible",
+        ]);
 
-      // Subir imágenes a GCS y guardar en DB
-      if (files && files.length > 0) {
-        const imageValues = [];
-
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i];
-          const uniqueName = `${uuidv4()}${path.extname(file.originalname)}`;
-          const blob = bucket.file(`products/${uniqueName}`);
-          const blobStream = blob.createWriteStream({
-            metadata: {
-              contentType: file.mimetype,
-            },
-          });
-
-          await new Promise((resolve, reject) => {
-            blobStream.on("error", reject);
-            blobStream.on("finish", resolve);
-            blobStream.end(file.buffer);
-          });
-
-          const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${
-            bucket.name
-          }/o/${encodeURIComponent(`products/${uniqueName}`)}?alt=media`;
-
-          imageValues.push({
-            product_id: productId,
-            image_url: publicUrl,
-            order: i + 1,
-          });
+        if (!productResult.rows || productResult.rows.length === 0) {
+          throw new Error("No se pudo crear el producto");
         }
 
-        const imageQuery = `
-        INSERT INTO product_images (product_id, image_url, "order")
-        VALUES ${imageValues
-          .map((_, i) => `($${i * 3 + 1}, $${i * 3 + 2}, $${i * 3 + 3})`)
-          .join(",")}
-      `;
-        const imageParams = imageValues.flatMap((val) => [
-          val.product_id,
-          val.image_url,
-          val.order,
-        ]);
-        await pool.query(imageQuery, imageParams);
+        const productId = productResult.rows[0].id;
+
+        // Subir imágenes a GCS y guardar en DB
+        if (files && files.length > 0) {
+          const imageValues = [];
+
+          for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const uniqueName = `${uuidv4()}${path.extname(file.originalname)}`;
+            const blob = bucket.file(`products/${uniqueName}`);
+            const blobStream = blob.createWriteStream({
+              metadata: {
+                contentType: file.mimetype,
+              },
+            });
+
+            await new Promise((resolve, reject) => {
+              blobStream.on("error", reject);
+              blobStream.on("finish", resolve);
+              blobStream.end(file.buffer);
+            });
+
+            const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${
+              bucket.name
+            }/o/${encodeURIComponent(`products/${uniqueName}`)}?alt=media`;
+
+            imageValues.push({
+              product_id: productId,
+              image_url: publicUrl,
+              order: i + 1,
+            });
+          }
+
+          if (imageValues.length > 0) {
+            const imageQuery = `
+              INSERT INTO product_images (product_id, image_url, "order")
+              VALUES ${imageValues
+                .map((_, i) => `($${i * 3 + 1}, $${i * 3 + 2}, $${i * 3 + 3})`)
+                .join(",")}
+            `;
+            const imageParams = imageValues.flatMap((val) => [
+              val.product_id,
+              val.image_url,
+              val.order,
+            ]);
+            await pool.query(imageQuery, imageParams);
+          }
+        }
+
+        // Confirmar transacción
+        await pool.query("COMMIT");
+
+        // Obtener el producto completo con sus imágenes
+        const finalProduct = await pool.query(
+          `SELECT p.*, 
+            json_agg(json_build_object(
+              'id', pi.id,
+              'image_url', pi.image_url,
+              'order', pi.order
+            )) as images
+          FROM products p
+          LEFT JOIN product_images pi ON p.id = pi.product_id
+          WHERE p.id = $1
+          GROUP BY p.id`,
+          [productId]
+        );
+
+        res.status(201).json({
+          message: "Producto creado exitosamente",
+          product: finalProduct.rows[0]
+        });
+      } catch (error) {
+        await pool.query("ROLLBACK");
+        throw error;
       }
-
-      // Confirmar transacción
-      await pool.query("COMMIT");
-
-      // Obtener toda la data del producto creado
-      const fullDataQuery = `
-      SELECT 
-        p.*,
-        c.name AS category_name,
-        s.name AS size_name,
-        (
-          SELECT COUNT(*) FROM favorites f WHERE f.product_id = p.id
-        ) AS favorites_count,
-        (
-          SELECT json_agg(json_build_object('image_url', pi.image_url, 'order', pi."order"))
-          FROM product_images pi
-          WHERE pi.product_id = p.id
-        ) AS images,
-        json_build_object(
-          'id', u.id,
-          'name', u.name,
-          'email', u.email,
-          'created_at', u.created_at,
-          'phone_number', u.phone_number
-        ) AS seller
-      FROM products p
-      JOIN categories c ON c.id = p.category_id
-      JOIN sizes s ON s.id = p.size_id
-      JOIN users u ON u.id = p.user_id
-      WHERE p.id = $1
-    `;
-      const fullDataResult = await pool.query(fullDataQuery, [productId]);
-      const productData = fullDataResult.rows[0];
-
-      // Emitir evento a todos los conectados
-      const io = getIO();
-      io.emit("producto_creado", productData);
-
-      // Responder con la data completa
-      res.status(201).json({
-        message: "Producto creado exitosamente",
-        product: productData,
-      });
     } catch (error) {
-      await pool.query("ROLLBACK");
-      console.error("Error al crear el producto:", error);
-      res.status(500).json({ error: "Error al crear el producto" });
+      console.error("Error al crear producto:", error);
+      res.status(500).json({ 
+        error: "Error al crear el producto",
+        details: error.message 
+      });
     }
   },
 
