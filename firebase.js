@@ -2,8 +2,6 @@ import { initializeApp, cert } from "firebase-admin/app";
 import { getStorage } from "firebase-admin/storage";
 import "dotenv/config";
 
-require("dotenv").config(); // o import 'dotenv/config' si usas ESM
-
 const serviceAccount = {
   type: process.env.FIREBASE_TYPE,
   project_id: process.env.FIREBASE_PROJECT_ID,
