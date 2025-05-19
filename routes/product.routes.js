@@ -260,22 +260,28 @@ router.use(authMiddleware);
  *             properties:
  *               title:
  *                 type: string
+ *                 minLength: 3
+ *                 maxLength: 150
  *                 example: Camiseta Vintage
  *               description:
  *                 type: string
+ *                 minLength: 10
  *                 example: Camiseta de algodón de excelente calidad, poco uso
  *               price:
  *                 type: number
+ *                 minimum: 0
  *                 example: 1500
  *               category_id:
  *                 type: string
  *                 format: uuid
+ *                 description: ID de una categoría válida
  *               size_id:
  *                 type: string
  *                 format: uuid
+ *                 description: ID de una talla válida
  *               status:
  *                 type: string
- *                 enum: [disponible, reservado, vendido]
+ *                 enum: [disponible, vendido]
  *                 default: disponible
  *               images:
  *                 type: array
@@ -439,6 +445,7 @@ router.put(
  *               properties:
  *                 message:
  *                   type: string
+ *                   example: "Imágenes actualizadas correctamente"
  *                 images:
  *                   type: array
  *                   items:
@@ -447,11 +454,20 @@ router.put(
  *                       id:
  *                         type: string
  *                         format: uuid
+ *                         example: "550e8400-e29b-41d4-a716-446655440004"
  *                       image_url:
  *                         type: string
  *                         format: uri
+ *                         example: "https://storage.googleapis.com/roperito-4d180.appspot.com/products/image1.jpg"
  *                       order:
  *                         type: integer
+ *                         example: 1
+ *       400:
+ *         description: Datos inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  *       401:
  *         description: No autorizado
  *         content:
