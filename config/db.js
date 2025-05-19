@@ -19,9 +19,10 @@ const productionConnection = {
   allowExitOnIdle: true,
 };
 
-const connection = process.env.DB_URL_CONNECTION
-  ? productionConnection
-  : developmentConection;
+const connection =
+  process.env.NODE_ENV === "production"
+    ? productionConnection
+    : developmentConection;
 
 const pool = new pg.Pool(connection);
 
