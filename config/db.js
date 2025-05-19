@@ -3,13 +3,27 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const pool = new pg.Pool({
+const developmentConection = {
   user: process.env.DB_USER || "postgres",
   host: process.env.DB_HOST || "localhost",
   database: process.env.DB_DATABASE || "roperito",
   password: process.env.DB_PASSWORD,
   port: parseInt(process.env.DB_PORT || "5432", 10),
-});
+};
+
+const productionConnection = {
+  connectionString: process.env.DB_URL_CONNECTION,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+  allowExitOnIdle: true,
+};
+
+const connection = process.env.DB_URL_CONNECTION
+  ? productionConnection
+  : developmentConection;
+
+const pool = new pg.Pool(connection);
 
 // Evento para manejar errores de conexión
 pool.on("error", (err) => {
